@@ -1,0 +1,24 @@
+JEJEJ
+ECECE
+JEJEJ
+
+Cell: nullable count of adjacent edges that are part of path, 0-4, linked to four junctions and four edges
+Junction: links 2-4 edges, 1-4 squares
+Edge: nullable bool, part of path or not. Liked to two junctions and two cells.
+
+Path: linked list of edges, partial or complete
+
+Save file:
+XxY
+_×.
+|N.
+_x.
+
+_ or | = edge is part of path
+× = edge is not part of path
+. = undetermined
+N = number of adjacent edges
+U = unknown number placeholder 
+
+
+Generator: randomly draw line until a full loop is made using most of the space. Then fill in all the numbers. Then back solve from the numbers, removing one randomly at a time until nothing can be removed without creating ambiguity.
