@@ -1,0 +1,11 @@
+﻿- A dropdown selector of available boards
+- Display board
+- Run solver
+- Click to mark line
+- Right click to X edge
+
+- Display tweaks
+ - Color lines
+ - Color hints that are met
+
+- Collaborative

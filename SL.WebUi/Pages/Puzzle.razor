@@ -1,0 +1,138 @@
+﻿@page "/puzzle/{name}"
+@using SL.Shared
+@using SL.Shared.Structures
+@inject NavigationManager NavigationManager
+
+<PageTitle>Puzzle</PageTitle>
+
+@if (Error != null)
+{
+    <p><em>@Error</em></p>
+}
+else if (_game == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>@Name</h1>
+
+    <button class="btn btn-primary" @onclick="Solve">Solve</button>
+
+    var board = _game.Board;
+
+    <table>
+        <tbody>
+
+            @for (var r = 0; r < board.Rows; r++)
+            {
+                <tr>
+                    
+                @{/* Line above */}
+                @for (int c = 0; c < board.Columns; c++)
+                {
+                    var cell = board[r, c];
+                    var edge = cell.Edges[Direction.North];
+
+                    <td align="center">+</td>
+                    <td align="center">@(edge.HasLine switch
+                        {
+                            null => "···",
+                            true => "---",
+                            false => "x",
+                        })
+                    </td>
+                    }
+                <td align="center">+</td>
+                </tr>
+                <tr>
+
+                @{/* West line, hint, East line */}
+                @for (int c = 0; c < board.Columns; c++)
+                {
+                    var cell = board[r, c];
+
+                    var edge = cell.Edges[Direction.West];
+                    <td align="center">@(edge.HasLine switch
+                    {
+                        null => ":",
+                        true => "|",
+                        false => "x",
+                    })</td>
+
+                    <td align="center"> @(cell.Hint?.ToString())</td>
+
+
+                    // if it's the last column, east line
+                    if (c == board.Columns - 1)
+                    {
+                        edge = cell.Edges[Direction.East];
+                        <td align="center">@(edge.HasLine switch
+                        {
+                            null => ":",
+                            true => "|",
+                            false => "x",
+                        })</td>
+                    }
+                }
+
+                </tr>
+
+                /* if it's the last row, line below */
+                @if (r == board.Rows - 1)
+                {
+                    <tr>
+                        @for (int c = 0; c < board.Columns; c++)
+                        {
+                            <td align="center">+</td>
+                            var cell = board[r, c];
+                            var edge = cell.Edges[Direction.South];
+                            <td align="center">@(edge.HasLine switch
+                            {
+                                null => "···",
+                                true => "---",
+                                false => "x",
+                            })</td>
+                        }
+                        <td align="center">+</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    // 👇 The value is set from the query string by the SetParametersAsync method
+    [Parameter]
+    public string Name { get; set; }
+
+    public string Error { get; set; }
+
+    private Game? _game;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO: Only accept names with alphanumerics
+        if (!string.IsNullOrEmpty(Name))
+        {
+            try
+            {
+                _game = new Game(GameLoader.ReadCsv(new StreamReader(@"..\" + Name + ".csv")));
+            }
+            catch (Exception ex)
+            {
+                Error = ex.ToString();
+            }
+        }
+        else
+        {
+            Error = "No puzzle selected.";
+        }
+    }
+
+    public void Solve()
+    {
+        Solver.Solve(_game);
+    }
+}

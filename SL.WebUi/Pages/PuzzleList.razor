@@ -1,0 +1,79 @@
+﻿@page "/puzzles"
+@using SL.Shared
+@using SL.WebUi.Data
+
+<PageTitle>Puzzle List</PageTitle>
+
+<h1>Puzzles</h1>
+
+<p>This is a list of available puzzles.</p>
+
+@if (_puzzles == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Play</th>
+                <th>Name</th>
+                <th>Solved?</th>
+                <th>Errors</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var puzzle in _puzzles)
+            {
+                <tr>
+                    <td>
+                        <NavLink class="nav-link" href="@string.Concat("puzzle/", puzzle.Name)">Play</NavLink>
+                    </td>
+                    <td>@puzzle.Name</td>
+                    <td>@puzzle.Solved</td>
+                    <td>@puzzle.Errors</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private PuzzleData[]? _puzzles;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var puzzles = new List<PuzzleData>();
+        foreach (var file in Directory.GetFiles("..", "*.csv"))
+        {
+            var puzzle = new Game(GameLoader.ReadCsv(new StreamReader(file)));
+            var errors = "";
+            var solved = false;
+            try
+            {
+                solved = Solver.Solve(puzzle);
+            }
+            catch (InvalidOperationException ioe)
+            {
+                errors = ioe.ToString();
+            }
+
+            puzzles.Add(new PuzzleData
+            {
+                Name = Path.GetFileNameWithoutExtension(file),
+                Solved = solved,
+                Errors = errors
+            });
+        }
+
+        _puzzles = puzzles.ToArray();
+    }
+
+    private class PuzzleData
+    {
+        public string Name { get; init; }
+        public bool Solved { get; init; }
+        public string Errors { get; init; }
+    }
+}

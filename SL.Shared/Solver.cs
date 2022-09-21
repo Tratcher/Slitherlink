@@ -65,11 +65,23 @@ namespace SL.Shared
         private static bool IsSolved(Game game)
         {
             // Are all hints satisfied
-
-            // Do all lines belong to one continuous loop
+            var board = game.Board;
+            for (var r = 0; r < board.Rows; r++)
+            {
+                for (var c = 0; c < board.Columns; c++)
+                {
+                    var cell = board[r, c];
+                    if (cell.Hint.HasValue)
+                    {
+                        if (cell.Lines != cell.Hint) return false;
+                    }
+                }
+            }
 
             // TODO:
-            return false;
+            // Do all lines belong to one continuous loop
+
+            return true;
         }
         /*
         private static void MarkZeros(Game game)
