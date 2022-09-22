@@ -22,53 +22,92 @@ else
 
     var board = _game.Board;
 
-    <table >
+        <table cellpadding="0" cellspacing="0">
         <tbody>
 
-            @for (var r = 0; r < board.Rows; r++)
+            @for (var r = 0; r <= board.Rows; r++)
             {
                 <tr>
-                    
-                @{/* Line above */}
-                @for (int c = 0; c < board.Columns; c++)
-                {
-                    var cell = board[r, c];
-                    var edge = cell.Edges[Direction.North];
+                    @{/* Line above */}
+                    @for (int c = 0; c < board.Columns; c++)
+                    {
+                        var junction = board.GetJunction(r, c);
+                        var north = junction.Edges[Direction.North];
+                        var east = junction.Edges[Direction.East];
+                        var south = junction.Edges[Direction.South];
+                        var west = junction.Edges[Direction.West];
 
-                    <td align="center" width="20" >
-                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="50" cy="50" r="20" />
-                        </svg>
-                    </td>
-                    <td align="center" width="20">
-                        @switch (edge.HasLine)
+                        <td align="center" width="20" >
+                            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="50" cy="50" r="10" fill="black" />
+                                @if (north?.HasLine == true)
+                                {
+                                    <line x1="50" y1="50" x2="50" y2="0" stroke="black" stroke-width="8" />
+                                }
+                                @if (east?.HasLine == true)
+                                {
+                                    <line x1="50" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
+                                }
+                                @if (south?.HasLine == true)
+                                {
+                                    <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                }
+                                @if (west?.HasLine == true)
+                                {
+                                    <line x1="50" y1="50" x2="0" y2="50" stroke="black" stroke-width="8" />
+                                }
+                            </svg>
+                        </td>
+                        <td align="center" width="20">
+                            @switch (east.HasLine)
+                            {
+                                case null:
+                                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                    </svg>
+                                    break;
+                                case true:
+                                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
+                                    </svg>
+                                    break;
+                                case false:
+                                    <div>x</div>
+                                    break;
+                            }
+                        </td>
+
+                        if (c == board.Columns - 1)
                         {
-                            case null:
+                            junction = board.GetJunction(r, c + 1);
+                            north = junction.Edges[Direction.North];
+                            south = junction.Edges[Direction.South];
+                            west = junction.Edges[Direction.West];
+                            <td align="center" width="20">
                                 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                    <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                    <circle cx="50" cy="50" r="10" />
+                                    @if (north?.HasLine == true)
+                                    {
+                                        <line x1="50" y1="50" x2="50" y2="0" stroke="black" stroke-width="8" />
+                                    }
+                                    @if (south?.HasLine == true)
+                                    {
+                                        <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                    }
+                                    @if (west?.HasLine == true)
+                                    {
+                                        <line x1="50" y1="50" x2="0" y2="50" stroke="black" stroke-width="8" />
+                                    }
                                 </svg>
-                                break;
-                            case true:
-                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                    <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
-                                </svg>
-                                break;
-                            case false:
-                                <div>x</div>
-                                break;
+                            </td>
                         }
-                    </td>
                     }
-                    <td align="center" width="20">
-                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="50" cy="50" r="20" />
-                        </svg>
-                    </td>
+
                 </tr>
                 <tr>
 
                 @{/* West line, hint, East line */}
-                @for (int c = 0; c < board.Columns; c++)
+                @for (int c = 0; c < board.Columns && r < board.Rows; c++)
                 {
                     var cell = board[r, c];
 
@@ -122,54 +161,13 @@ else
                 }
 
                 </tr>
-
-                /* if it's the last row, line below */
-                @if (r == board.Rows - 1)
-                {
-                    <tr>
-                        @for (int c = 0; c < board.Columns; c++)
-                        {
-                            <td align="center">
-                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="50" cy="50" r="20" />
-                                </svg>
-                            </td>
-                            var cell = board[r, c];
-                            var edge = cell.Edges[Direction.South];
-
-                            <td align="center">
-                                @switch (edge.HasLine)
-                                {
-                                    case null:
-                                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                            <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
-                                        </svg>
-                                        break;
-                                    case true:
-                                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                            <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
-                                        </svg>
-                                        break;
-                                    case false:
-                                        <div>x</div>
-                                        break;
-                                }
-                            </td>
-                        }
-                        <td align="center">
-                            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="50" cy="50" r="20" />
-                            </svg>
-                        </td>
-                    </tr>
-                }
             }
         </tbody>
     </table>
 }
 
 @code {
-    // 👇 The value is set from the query string by the SetParametersAsync method
+    // 👇 The value is set from the query string
     [Parameter]
     public string Name { get; set; }
 
