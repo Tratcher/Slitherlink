@@ -17,11 +17,12 @@ else
 {
     <h1>@Name</h1>
 
+    <button class="btn btn-primary" @onclick="Reset">Reset</button>
     <button class="btn btn-primary" @onclick="Solve">Solve</button>
 
     var board = _game.Board;
 
-    <table>
+    <table >
         <tbody>
 
             @for (var r = 0; r < board.Rows; r++)
@@ -34,16 +35,35 @@ else
                     var cell = board[r, c];
                     var edge = cell.Edges[Direction.North];
 
-                    <td align="center">+</td>
-                    <td align="center">@(edge.HasLine switch
+                    <td align="center" width="20" >
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="50" cy="50" r="20" />
+                        </svg>
+                    </td>
+                    <td align="center" width="20">
+                        @switch (edge.HasLine)
                         {
-                            null => "···",
-                            true => "---",
-                            false => "x",
-                        })
+                            case null:
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                </svg>
+                                break;
+                            case true:
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
+                                </svg>
+                                break;
+                            case false:
+                                <div>x</div>
+                                break;
+                        }
                     </td>
                     }
-                <td align="center">+</td>
+                    <td align="center" width="20">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="50" cy="50" r="20" />
+                        </svg>
+                    </td>
                 </tr>
                 <tr>
 
@@ -53,12 +73,24 @@ else
                     var cell = board[r, c];
 
                     var edge = cell.Edges[Direction.West];
-                    <td align="center">@(edge.HasLine switch
-                    {
-                        null => ":",
-                        true => "|",
-                        false => "x",
-                    })</td>
+                    <td align="center">
+                        @switch (edge.HasLine)
+                        {
+                            case null:
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                </svg>
+                                break;
+                            case true:
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                </svg>
+                                break;
+                            case false:
+                                <div>x</div>
+                                break;
+                        }
+                    </td>
 
                     <td align="center"> @(cell.Hint?.ToString())</td>
 
@@ -67,12 +99,25 @@ else
                     if (c == board.Columns - 1)
                     {
                         edge = cell.Edges[Direction.East];
-                        <td align="center">@(edge.HasLine switch
-                        {
-                            null => ":",
-                            true => "|",
-                            false => "x",
-                        })</td>
+
+                        <td align="center">
+                            @switch (edge.HasLine)
+                            {
+                                case null:
+                                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                    </svg>
+                                    break;
+                                case true:
+                                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                    </svg>
+                                    break;
+                                case false:
+                                    <div>x</div>
+                                    break;
+                            }
+                        </td>
                     }
                 }
 
@@ -84,17 +129,38 @@ else
                     <tr>
                         @for (int c = 0; c < board.Columns; c++)
                         {
-                            <td align="center">+</td>
+                            <td align="center">
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="50" cy="50" r="20" />
+                                </svg>
+                            </td>
                             var cell = board[r, c];
                             var edge = cell.Edges[Direction.South];
-                            <td align="center">@(edge.HasLine switch
-                            {
-                                null => "···",
-                                true => "---",
-                                false => "x",
-                            })</td>
+
+                            <td align="center">
+                                @switch (edge.HasLine)
+                                {
+                                    case null:
+                                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                            <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                        </svg>
+                                        break;
+                                    case true:
+                                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                            <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
+                                        </svg>
+                                        break;
+                                    case false:
+                                        <div>x</div>
+                                        break;
+                                }
+                            </td>
                         }
-                        <td align="center">+</td>
+                        <td align="center">
+                            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="50" cy="50" r="20" />
+                            </svg>
+                        </td>
                     </tr>
                 }
             }
@@ -113,6 +179,16 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Reset();
+    }
+
+    public void Solve()
+    {
+        Solver.Solve(_game);
+    }
+
+    public void Reset()
+    {
         // TODO: Only accept names with alphanumerics
         if (!string.IsNullOrEmpty(Name))
         {
@@ -129,10 +205,5 @@ else
         {
             Error = "No puzzle selected.";
         }
-    }
-
-    public void Solve()
-    {
-        Solver.Solve(_game);
     }
 }
