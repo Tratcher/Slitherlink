@@ -1,7 +1,9 @@
 ﻿@page "/puzzle/{name}"
+@page "/puzzle/"
 @using SL.Shared
 @using SL.Shared.Structures
 @inject NavigationManager NavigationManager
+@inject IHostEnvironment HostEnvironment
 
 <PageTitle>Puzzle</PageTitle>
 
@@ -9,7 +11,7 @@
 {
     <p><em>@Error</em></p>
 }
-else if (_game == null)
+@if (_game == null)
 {
     <p><em>Loading...</em></p>
 }
@@ -19,10 +21,15 @@ else
 
     <button class="btn btn-primary" @onclick="Reset">Reset</button>
     <button class="btn btn-primary" @onclick="Solve">Solve</button>
+    <button class="btn btn-primary" @onclick="Undo">Undo</button>
+    <button class="btn btn-primary" @onclick="Redo">Redo</button>
 
     var board = _game.Board;
+    var scale = 27; // The table starts to deform (adding row height) if I use a smaller value than 27. What's taking up extra height?
+    var width = scale * 2 * board.Columns + scale;
+    var height = scale * 2 * board.Rows + scale;
 
-        <table cellpadding="0" cellspacing="0">
+    <table cellpadding="0" cellspacing="0" width="@width" height="@height">
         <tbody>
 
             @for (var r = 0; r <= board.Rows; r++)
@@ -36,43 +43,48 @@ else
                         var east = junction.Edges[Direction.East];
                         var south = junction.Edges[Direction.South];
                         var west = junction.Edges[Direction.West];
+                        var row = r;
+                        var column = c;
 
-                        <td align="center" width="20" >
+                        <td align="center" width="@scale" >
                             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="50" cy="50" r="10" fill="black" />
+                                <circle cx="50" cy="50" r="15" fill="black" />
                                 @if (north?.HasLine == true)
                                 {
-                                    <line x1="50" y1="50" x2="50" y2="0" stroke="black" stroke-width="8" />
+                                    <line x1="50" y1="50" x2="50" y2="0" stroke="black" stroke-width="4" />
                                 }
                                 @if (east?.HasLine == true)
                                 {
-                                    <line x1="50" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
+                                    <line x1="50" y1="50" x2="100" y2="50" stroke="black" stroke-width="4" />
                                 }
                                 @if (south?.HasLine == true)
                                 {
-                                    <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                    <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="4" />
                                 }
                                 @if (west?.HasLine == true)
                                 {
-                                    <line x1="50" y1="50" x2="0" y2="50" stroke="black" stroke-width="8" />
+                                    <line x1="50" y1="50" x2="0" y2="50" stroke="black" stroke-width="4" />
                                 }
                             </svg>
                         </td>
-                        <td align="center" width="20">
+                        <td align="center" width="@scale" @onclick="@(e => UpdateJunctionEdge(e, row, column, Direction.East))">
                             @switch (east.HasLine)
                             {
                                 case null:
                                     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                        <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                        <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="4" stroke-dasharray="5 10"/>
                                     </svg>
                                     break;
                                 case true:
                                     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                        <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="8" />
+                                        <line x1="0" y1="50" x2="100" y2="50" stroke="black" stroke-width="4" />
                                     </svg>
                                     break;
                                 case false:
-                                    <div>x</div>
+                                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="35" y1="35" x2="65" y2="65" stroke="black" stroke-width="4" />
+                                        <line x1="35" y1="65" x2="65" y2="35" stroke="black" stroke-width="4" />
+                                    </svg>
                                     break;
                             }
                         </td>
@@ -83,20 +95,20 @@ else
                             north = junction.Edges[Direction.North];
                             south = junction.Edges[Direction.South];
                             west = junction.Edges[Direction.West];
-                            <td align="center" width="20">
+                            <td align="center" width="@scale">
                                 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="50" cy="50" r="10" />
+                                    <circle cx="50" cy="50" r="15" />
                                     @if (north?.HasLine == true)
                                     {
-                                        <line x1="50" y1="50" x2="50" y2="0" stroke="black" stroke-width="8" />
+                                        <line x1="50" y1="50" x2="50" y2="0" stroke="black" stroke-width="4" />
                                     }
                                     @if (south?.HasLine == true)
                                     {
-                                        <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                        <line x1="50" y1="50" x2="50" y2="100" stroke="black" stroke-width="4" />
                                     }
                                     @if (west?.HasLine == true)
                                     {
-                                        <line x1="50" y1="50" x2="0" y2="50" stroke="black" stroke-width="8" />
+                                        <line x1="50" y1="50" x2="0" y2="50" stroke="black" stroke-width="4" />
                                     }
                                 </svg>
                             </td>
@@ -110,28 +122,37 @@ else
                 @for (int c = 0; c < board.Columns && r < board.Rows; c++)
                 {
                     var cell = board[r, c];
+                    var row = r;
+                    var column = c;
 
                     var edge = cell.Edges[Direction.West];
-                    <td align="center">
+                    <td align="center" @onclick="@(e => UpdateCellEdge(e, row, column, Direction.West))">
                         @switch (edge.HasLine)
                         {
                             case null:
                                 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                    <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                    <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="4" stroke-dasharray="5 10"/>
                                 </svg>
                                 break;
                             case true:
                                 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                    <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                    <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="4" />
                                 </svg>
                                 break;
                             case false:
-                                <div>x</div>
+                                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <line x1="35" y1="35" x2="65" y2="65" stroke="black" stroke-width="4" />
+                                    <line x1="35" y1="65" x2="65" y2="35" stroke="black" stroke-width="4" />
+                                </svg>
                                 break;
                         }
                     </td>
 
-                    <td align="center"> @(cell.Hint?.ToString())</td>
+                    <td align="center">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <text x="25" y="80" font-size="100">@(cell.Hint?.ToString())</text>
+                        </svg>
+                    </td>
 
 
                     // if it's the last column, east line
@@ -139,21 +160,24 @@ else
                     {
                         edge = cell.Edges[Direction.East];
 
-                        <td align="center">
+                        <td align="center" @onclick="@(e => UpdateCellEdge(e, row, column, Direction.East))">
                             @switch (edge.HasLine)
                             {
                                 case null:
                                     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                        <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" stroke-dasharray="5 10"/>
+                                        <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="4" stroke-dasharray="5 10"/>
                                     </svg>
                                     break;
                                 case true:
                                     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                        <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="8" />
+                                        <line x1="50" y1="0" x2="50" y2="100" stroke="black" stroke-width="4" />
                                     </svg>
                                     break;
                                 case false:
-                                    <div>x</div>
+                                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                        <line x1="35" y1="35" x2="65" y2="65" stroke="black" stroke-width="4" />
+                                        <line x1="35" y1="65" x2="65" y2="35" stroke="black" stroke-width="4" />
+                                    </svg>
                                     break;
                             }
                         </td>
@@ -182,26 +206,77 @@ else
 
     public void Solve()
     {
-        Solver.Solve(_game);
+        try
+        {
+            Solver.Solve(_game);
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.ToString();
+        }
     }
 
     public void Reset()
     {
+        Error = null;
+        _game = null;
+        var path = (HostEnvironment.IsDevelopment() ? ".." : ".") + Path.DirectorySeparatorChar;
         // TODO: Only accept names with alphanumerics
-        if (!string.IsNullOrEmpty(Name))
+        if (string.IsNullOrEmpty(Name))
         {
-            try
-            {
-                _game = new Game(GameLoader.ReadCsv(new StreamReader(@"..\" + Name + ".csv")));
-            }
-            catch (Exception ex)
-            {
-                Error = ex.ToString();
-            }
+            Name = Path.GetFileNameWithoutExtension(Directory.GetFiles(path, "*.csv").FirstOrDefault());
         }
-        else
+
+        if (string.IsNullOrEmpty(Name))
         {
-            Error = "No puzzle selected.";
+            Error = "No puzzle available.";
+            return;
         }
+
+        try
+        {
+            _game = new Game(GameLoader.ReadCsv(new StreamReader(path + Name + ".csv")));
+        }
+        catch (Exception ex)
+        {
+            Error = ex.ToString();
+        }
+    }
+
+    public void Undo()
+    {
+        _game?.Undo();
+    }
+
+    public void Redo()
+    {
+        _game?.Redo();
+    }
+
+    public void UpdateJunctionEdge(MouseEventArgs e, int row, int column, int dir)
+    {
+        var junction = _game.Board.GetJunction(row, column);
+        var oldValue = junction.Edges[dir].HasLine;
+        bool? newValue = oldValue switch
+        {
+            null => true,
+            true => false,
+            false => null
+        };
+        _game.MarkJunctionEdge(row, column, dir, newValue, preventOverride: false);
+    }
+
+    public void UpdateCellEdge(MouseEventArgs e, int row, int column, int dir)
+    {
+        var cell = _game.Board[row, column];
+        var oldValue = cell.Edges[dir].HasLine;
+        bool? newValue = oldValue switch
+        {
+            null => true,
+            true => false,
+            false => null
+        };
+        _game.MarkCellEdge(row, column, dir, newValue, preventOverride: false);
     }
 }

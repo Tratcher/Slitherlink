@@ -1,6 +1,7 @@
 ﻿using SL.Shared.Structures;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -11,6 +12,7 @@ namespace SL.Shared
 {
     public class Game
     {
+        private int _historyIndex;
 
         public Game(Board board)
         {
@@ -20,6 +22,7 @@ namespace SL.Shared
         public Board Board { get; }
 
         public Stack<Move> History { get; } = new();
+        public Stack<Move> RedoHistory { get; } = new();
 
         public bool MarkCellEdge(int row, int column, int direction, bool? hasLine, bool preventOverride = true)
         {
@@ -65,10 +68,12 @@ namespace SL.Shared
                 NewValue = hasLine,
             });
 
+            RedoHistory.Clear();
+
             return true;
         }
 
-        public bool MarkJunctionEdge(int row, int column, int direction, bool? hasLine)
+        public bool MarkJunctionEdge(int row, int column, int direction, bool? hasLine, bool preventOverride = true)
         {
             // Translate back into cell coordinates first.
             switch (direction)
@@ -76,30 +81,57 @@ namespace SL.Shared
                 case Direction.North:
                     if (column < Board.Columns)
                     {
-                        return MarkCellEdge(row - 1, column, Direction.West, hasLine);
+                        return MarkCellEdge(row - 1, column, Direction.West, hasLine, preventOverride);
                     }
-                    return MarkCellEdge(row - 1, column - 1, Direction.East, hasLine);
+                    return MarkCellEdge(row - 1, column - 1, Direction.East, hasLine, preventOverride);
                 case Direction.South:
                     if (column < Board.Columns)
                     {
-                        return MarkCellEdge(row, column, Direction.West, hasLine);
+                        return MarkCellEdge(row, column, Direction.West, hasLine, preventOverride);
                     }
-                    return MarkCellEdge(row, column - 1, Direction.East, hasLine);
+                    return MarkCellEdge(row, column - 1, Direction.East, hasLine, preventOverride);
                 case Direction.East:
                     if (row < Board.Rows)
                     {
-                        return MarkCellEdge(row, column, Direction.North, hasLine);
+                        return MarkCellEdge(row, column, Direction.North, hasLine, preventOverride);
                     }
-                    return MarkCellEdge(row - 1, column, Direction.South, hasLine);
+                    return MarkCellEdge(row - 1, column, Direction.South, hasLine, preventOverride);
                 case Direction.West:
                     if (row < Board.Rows)
                     {
-                        return MarkCellEdge(row, column - 1, Direction.North, hasLine);
+                        return MarkCellEdge(row, column - 1, Direction.North, hasLine, preventOverride);
                     }
-                    return MarkCellEdge(row - 1, column - 1, Direction.South, hasLine);
+                    return MarkCellEdge(row - 1, column - 1, Direction.South, hasLine, preventOverride);
                 default:
                     throw new NotImplementedException(direction.ToString());
             }
+        }
+
+        // TODO: Undo doesn't revert inferences made by the solver
+        // Maybe we should clear inferences after running the solver (unless we want to display them?)
+        // Otherwise we should add them to the History
+        public void Undo()
+        {
+            if (!History.TryPop(out var move)) return;
+
+            var cell = Board[move.Row, move.Column];
+            var edge = cell.Edges[move.Direction];
+            Debug.Assert(edge.HasLine == move.NewValue);
+            edge.HasLine = move.OldValue;
+
+            RedoHistory.Push(move);
+        }
+
+        public void Redo()
+        {
+            if (!RedoHistory.TryPop(out var move)) return;
+
+            var cell = Board[move.Row, move.Column];
+            var edge = cell.Edges[move.Direction];
+            Debug.Assert(edge.HasLine == move.OldValue);
+            edge.HasLine = move.NewValue;
+
+            History.Push(move);
         }
     }
 }

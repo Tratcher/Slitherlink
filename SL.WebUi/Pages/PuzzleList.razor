@@ -1,6 +1,7 @@
 ﻿@page "/puzzles"
 @using SL.Shared
 @using SL.WebUi.Data
+@inject IHostEnvironment HostEnvironment
 
 <PageTitle>Puzzle List</PageTitle>
 
@@ -19,7 +20,7 @@ else
             <tr>
                 <th>Play</th>
                 <th>Name</th>
-                <th>Solved?</th>
+                <th>Solved by AI</th>
                 <th>Errors</th>
             </tr>
         </thead>
@@ -45,7 +46,8 @@ else
     protected override async Task OnInitializedAsync()
     {
         var puzzles = new List<PuzzleData>();
-        foreach (var file in Directory.GetFiles("..", "*.csv"))
+        var path = (HostEnvironment.IsDevelopment() ? ".." : ".") + Path.DirectorySeparatorChar;
+        foreach (var file in Directory.GetFiles(path, "*.csv"))
         {
             var puzzle = new Game(GameLoader.ReadCsv(new StreamReader(file)));
             var errors = "";

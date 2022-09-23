@@ -1,6 +1,5 @@
 ﻿using SL.Shared.Structures;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 
 namespace SL.Shared
@@ -15,49 +14,30 @@ namespace SL.Shared
 
             // MarkDiagonalThrees(game); // Generalized by InferThrees
 
-            bool progress;
             do
             {
-                progress = false;
-
-                progress |= MarkOnesInACorner(game);
-
-                progress |= MarkThreesInACorner(game);
-
-                progress |= MarkTwosInACorner(game);
-
-                progress |= MarkThreesWithIncomingLines(game);
-
-                progress |= MarkDeadEnds(game);
-
-                progress |= MarkLinesMatchingHints(game);
-
-                progress |= DetectLoops(game);
-
-                progress |= ExtendLines(game);
-
-                progress |= InferOnes(game);
-
-                progress |= InferTwos(game);
-
-                progress |= InferThrees(game);
-
-                progress |= InferExit(game);
-
-                progress |= CheckInferences(game);
-
-                progress |= CheckSingleCellParity(game);
+                if (MarkLinesMatchingHints(game)) continue;
+                if (MarkDeadEnds(game)) continue;
+                if (ExtendLines(game)) continue;
+                if (MarkOnesInACorner(game)) continue;
+                if (MarkThreesInACorner(game)) continue;
+                if (MarkThreesWithIncomingLines(game)) continue;
+                if (MarkTwosInACorner(game)) continue;
+                if (InferOnes(game)) continue;
+                if (InferTwos(game)) continue;
+                if (InferThrees(game)) continue;
+                if (InferExit(game)) continue;
+                if (CheckInferences(game)) continue;
+                if (CheckSingleCellParity(game)) continue;
+                if (DetectLoops(game)) continue;
 
                 // Ones next to threes on an edge
-
-                // Prevent turning await from a cell if it would x out too many edges in that cell (line into a 3, line into a 2 with one line already and one x'd, line into a 1 with two edges blocked
-                // Includes threes that don't have any lines yet
 
                 // Check parity, Isolated reagons (LH37)
                 // - Can't close off a section from the rest of the board
                 // - If a cell only has one possible external exit, and there's an odd number of loose ends, the line that can exit must.
-
-            } while (progress);
+                break;
+            } while (true);
 
             return IsSolved(game);
         }
