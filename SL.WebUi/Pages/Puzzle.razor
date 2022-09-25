@@ -65,6 +65,43 @@ else
                                 {
                                     <line x1="50" y1="50" x2="0" y2="50" stroke="black" stroke-width="4" />
                                 }
+                                @foreach (var inference in junction.Inferences)
+                                {
+                                    var x = 0;
+                                    var y = 0;
+
+                                    switch (inference.Direction1)
+                                    {
+                                        case Direction.North:
+                                            y = 25;
+                                            break;
+                                        case Direction.East:
+                                            x = 75;
+                                            break;
+                                        case Direction.South:
+                                            y = 75;
+                                            break;
+                                        case Direction.West:
+                                            x = 25;
+                                            break;
+                                    }
+                                    switch (inference.Direction2)
+                                    {
+                                        case Direction.North:
+                                            y = 25;
+                                            break;
+                                        case Direction.East:
+                                            x = 75;
+                                            break;
+                                        case Direction.South:
+                                            y = 75;
+                                            break;
+                                        case Direction.West:
+                                            x = 25;
+                                            break;
+                                    }
+                                    <line x1="50" y1="50" x2="@x" y2="@y" stroke="black" stroke-width="2" />
+                                }
                             </svg>
                         </td>
                         <td align="center" width="@scale" @onclick="@(e => UpdateJunctionEdge(e, row, column, Direction.East))">
@@ -193,9 +230,9 @@ else
 @code {
     // 👇 The value is set from the query string
     [Parameter]
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
-    public string Error { get; set; }
+    public string? Error { get; set; }
 
     private Game? _game;
 

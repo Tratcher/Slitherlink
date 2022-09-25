@@ -1,5 +1,6 @@
 ﻿using SL.Shared.Structures;
 using System;
+using System.Data;
 using System.Diagnostics;
 
 namespace SL.Shared
@@ -8,6 +9,9 @@ namespace SL.Shared
     {
         public static bool Solve(Game game)
         {
+            // Reset any stale inferences, they may be derived from invalid user input.
+            ClearInferences(game);
+
             // MarkZeros(game); // Generalized by MarkLinesMatchingHints
 
             MarkAdjacentThrees(game);
@@ -63,6 +67,20 @@ namespace SL.Shared
 
             return true;
         }
+
+        private static void ClearInferences(Game game)
+        {
+            var board = game.Board;
+            for (var r = 0; r <= board.Rows; r++)
+            {
+                for (var c = 0; c <= board.Columns; c++)
+                {
+                    var junction = board.GetJunction(r, c);
+                    junction.Inferences.Clear();
+                }
+            }
+        }
+
         /*
         private static void MarkZeros(Game game)
         {
@@ -818,10 +836,10 @@ namespace SL.Shared
 
         // Opposite corners
         // Two with a line touching opposite corners, both must enter, xor that corner (LH38)
+        // - Line into a two's junction with three available edges. Exiting would eliminate two edges from the 2. If that does not leave enough remaining edges, exiting here isn't possible. (LH38 - 7,13)
         // TODO:
         // - one line, one x, two adjacent lines makes an inference
-        // - Two diagonal to a three, with three available edges (possibly with intermediate twos). The two edges adjacent connected to the 3 are xor and the 3rd is a line, then xor the 3's corner (MH29, SH41)
-        // - Line into a two's junction with three available edges. Exiting would eliminate two edges from the 2. If that does not leave enough remaining edges, exiting here isn't possible. (LH38 - 7,13)
+        // - Two diagonal to a three, with three available edges (possibly with intermediate twos). The two edges adjacent connected to the 3 are xor and the 3rd is a line, then xor the 3's corner (SH41)
         private static bool InferTwos(Game game)
         {
             bool progress = false;
