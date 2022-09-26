@@ -319,7 +319,16 @@ else
             true => false,
             false => null
         };
-        _game.MarkJunctionEdge(row, column, dir, newValue, preventOverride: false);
+
+        try
+        {
+            _game.MarkJunctionEdge(row, column, dir, newValue, preventOverride: false, validate: false);
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.ToString();
+        }
     }
 
     public void UpdateCellEdge(MouseEventArgs e, int row, int column, int dir)
@@ -332,6 +341,15 @@ else
             true => false,
             false => null
         };
-        _game.MarkCellEdge(row, column, dir, newValue, preventOverride: false);
+
+        try
+        {
+            _game.MarkCellEdge(row, column, dir, newValue, preventOverride: false, validate: false);
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.ToString();
+        }
     }
 }
