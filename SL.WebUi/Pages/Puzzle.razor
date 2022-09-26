@@ -25,17 +25,28 @@ else
     <button class="btn btn-primary" @onclick="Redo">Redo</button>
 
     var board = _game.Board;
+    // TODO: It's deforming again after I added the row indexes
     var scale = 27; // The table starts to deform (adding row height) if I use a smaller value than 27. What's taking up extra height?
     var width = scale * 2 * board.Columns + scale;
     var height = scale * 2 * board.Rows + scale;
 
     <table cellpadding="0" cellspacing="0" width="@width" height="@height">
         <tbody>
+            @{/* Column indexes */}
+            <tr>
+                <td />
+                @for (int c = 0; c <= board.Columns; c++)
+                {
+                    <td/>
+                    <td align="center">@c</td>
+                }
+            </tr>
 
             @for (var r = 0; r <= board.Rows; r++)
             {
                 <tr>
                     @{/* Line above */}
+                    <td />
                     @for (int c = 0; c < board.Columns; c++)
                     {
                         var junction = board.GetJunction(r, c);
@@ -156,6 +167,7 @@ else
                 <tr>
 
                 @{/* West line, hint, East line */}
+                <td align="center">@r</td>
                 @for (int c = 0; c < board.Columns && r < board.Rows; c++)
                 {
                     var cell = board[r, c];
@@ -218,7 +230,13 @@ else
                                     break;
                             }
                         </td>
+                        <td align="center">@r</td>
                     }
+                }
+                @for (int c = 0; c <= board.Columns && r == board.Rows; c++)
+                {
+                    <td/>
+                    <td align="center">@c</td>
                 }
 
                 </tr>

@@ -738,6 +738,8 @@ namespace SL.Shared
         // - One line entering a 1, x the opposite edges (LH37)
         //  - Mark diagonal 1's, 2s, 3s. (covered by inference)
         // - Two connected edges available, must exit from that corner, single line or infered xor (SM43)
+        // TODO:
+        // - Two adjacent ones on the edge, can't go between them. (HH105, east edge)
         private static bool InferOnes(Game game)
         {
             bool progress = false;
@@ -1023,6 +1025,9 @@ namespace SL.Shared
         }
 
         //  - Line into a hint's junction with three available edges. Exiting would eliminate two edges from the cell. If that does not leave enough remaining edges, exiting here isn't possible. (LH38 - 7,13)
+        // TODO
+        // - This should cascade. If E.g. HH105 6,22 SE junction can't turn right, otherwise the 2 would cut off the diagonaly 3. Also for HH105 24,18 N.
+
         private static bool InferExit(Game game)
         {
             bool progress = false;

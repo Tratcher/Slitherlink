@@ -62,6 +62,11 @@ namespace SL.Shared
             {
                 throw new InvalidOperationException($"Cell at r:{row} c:{column} h:{cell.Hint} d:{direction} already has enough lines.");
             }
+            // - or too few
+            if (hasLine == false && cell.Undetermined + cell.Lines - 1 < cell.Hint)
+            {
+                throw new InvalidOperationException($"Cell at r:{row} c:{column} h:{cell.Hint} d:{direction} wouldn't have enough lines.");
+            }
             int adjacentRow = row, adjacentColumn = column;
             switch (direction)
             {
@@ -78,14 +83,17 @@ namespace SL.Shared
                     adjacentColumn--;
                     break;
             }
-            if (hasLine == true
-                && 0 <= adjacentRow && adjacentRow < Board.Rows
+            if (0 <= adjacentRow && adjacentRow < Board.Rows
                 && 0 <= adjacentColumn && adjacentColumn < Board.Columns)
             {
                 var adjacentCell = Board[adjacentRow, adjacentColumn];
-                if (adjacentCell.Hint == adjacentCell.Lines)
+                if (hasLine == true && adjacentCell.Hint == adjacentCell.Lines)
                 {
                     throw new InvalidOperationException($"Cell at r:{adjacentRow} c:{adjacentColumn} h:{adjacentCell.Hint} d:{Direction.Opposite(direction)} already has enough lines.");
+                }
+                if (hasLine == false && adjacentCell.Undetermined + adjacentCell.Lines - 1 < adjacentCell.Hint)
+                {
+                    throw new InvalidOperationException($"Cell at r:{adjacentRow} c:{adjacentColumn} h:{adjacentCell.Hint} d:{Direction.Opposite(direction)} wouldn't have enough lines.");
                 }
             }
 
