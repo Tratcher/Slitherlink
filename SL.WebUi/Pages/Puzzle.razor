@@ -25,10 +25,9 @@ else
     <button class="btn btn-primary" @onclick="Redo">Redo</button>
 
     var board = _game.Board;
-    // TODO: It's deforming again after I added the row indexes
     var scale = 27; // The table starts to deform (adding row height) if I use a smaller value than 27. What's taking up extra height?
-    var width = scale * 2 * board.Columns + scale;
-    var height = scale * 2 * board.Rows + scale;
+    var width = scale * 2 * board.Columns + 3 * scale;
+    var height = scale * 2 * board.Rows + 3 * scale;
 
     <table cellpadding="0" cellspacing="0" width="@width" height="@height">
         <tbody>
@@ -38,7 +37,11 @@ else
                 @for (int c = 0; c <= board.Columns; c++)
                 {
                     <td/>
-                    <td align="center">@c</td>
+                    <td align="center" width="@scale">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <text x="30" y="65" font-size="50">@c</text>
+                        </svg>
+                    </td>
                 }
             </tr>
 
@@ -167,7 +170,11 @@ else
                 <tr>
 
                 @{/* West line, hint, East line */}
-                <td align="center">@r</td>
+                <td align="center" width="@scale">
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                <text x="30" y="65" font-size="50">@r</text>
+                    </svg>
+                </td>
                 @for (int c = 0; c < board.Columns && r < board.Rows; c++)
                 {
                     var cell = board[r, c];
@@ -230,13 +237,21 @@ else
                                     break;
                             }
                         </td>
-                        <td align="center">@r</td>
+                        <td align="center" width="@scale">
+                            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                <text x="30" y="65" font-size="50">@r</text>
+                            </svg>
+                        </td>
                     }
                 }
                 @for (int c = 0; c <= board.Columns && r == board.Rows; c++)
                 {
                     <td/>
-                    <td align="center">@c</td>
+                    <td align="center" width="@scale">
+                        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <text x="30" y="65" font-size="50">@c</text>
+                        </svg>
+                    </td>
                 }
 
                 </tr>
