@@ -612,12 +612,14 @@ namespace SL.Shared
                     var cell = board[r, c];
                     if (cell.Hint.HasValue)
                     {
+                        var undetermined = cell.Undetermined;
+                        if (undetermined == 0) continue;
                         var north = cell.Edges[Direction.North];
                         var south = cell.Edges[Direction.South];
                         var east = cell.Edges[Direction.East];
                         var west = cell.Edges[Direction.West];
                         var totalLines = cell.Lines;
-                        var availableEdges = totalLines + cell.Undetermined;
+                        var availableEdges = totalLines + undetermined;
 
                         // Possible edges matches hit, mark them all as lines
                         if (availableEdges == cell.Hint)
@@ -675,24 +677,14 @@ namespace SL.Shared
                 for (var c = 0; c <= board.Columns; c++)
                 {
                     var junction = board.GetJunction(r, c);
-                    var north = junction.Edges[Direction.North];
-                    var south = junction.Edges[Direction.South];
-                    var east = junction.Edges[Direction.East];
-                    var west = junction.Edges[Direction.West];
-                    var northIsDead = north == null || north.HasLine == false;
-                    var southIsDead = south == null || south.HasLine == false;
-                    var eastIsDead = east == null || east.HasLine == false;
-                    var westIsDead = west == null || west.HasLine == false;
-                    var totalAlive = (northIsDead ? 0 : 1) + (southIsDead ? 0 : 1) + (eastIsDead ? 0 : 1) + (westIsDead ? 0 : 1);
+                    if (junction.LineCount != 1) continue;
 
-                    var northHasLine = north?.HasLine == true;
-                    var southHasLine = south?.HasLine == true;
-                    var eastHasLine = east?.HasLine == true;
-                    var westHasLine = west?.HasLine == true;
-                    var totalLines = (northHasLine ? 1 : 0) + (southHasLine ? 1 : 0) + (eastHasLine ? 1 : 0) + (westHasLine ? 1 : 0);
-
-                    if (totalAlive == 2 && totalLines == 1)
+                    if (junction.UnknownCount == 1)
                     {
+                        var north = junction.Edges[Direction.North];
+                        var south = junction.Edges[Direction.South];
+                        var east = junction.Edges[Direction.East];
+                        var west = junction.Edges[Direction.West];
                         // Two possible lines and one is marked. Mark the other.
                         if (north != null && !north.HasLine.HasValue)
                         {

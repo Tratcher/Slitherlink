@@ -27,7 +27,19 @@ namespace SL.Shared.Structures
 
         public int EdgeCount => Edges.Count(e => e != null);
 
-        public int LineCount => Edges.Count(e => e?.HasLine == true);
+        public int LineCount
+        {
+            get
+            {
+                var lines = 0;
+                for (var i = 0; i < Edges.Length; i++)
+                {
+                    var e = Edges[i];
+                    if (e?.HasLine == true) lines++;
+                }
+                return lines;
+            }
+        }
 
         public int NotLineCount => Edges.Count(e => e?.HasLine == false);
 
