@@ -74,6 +74,7 @@ namespace SL.Shared
             var board = game.Board;
 
             int progress;
+            // Start by only trying to extend lines
             do
             {
                 progress = game.History.Count;
@@ -82,7 +83,27 @@ namespace SL.Shared
                 {
                     for (var c = 0; c <= board.Columns; c++)
                     {
+                        var junction = board.GetJunction(r, c);
+                        if (junction.LineCount == 1)
+                        {
+                            // Since we're checking every junction we only need to look at two edges each.
+                            TestEdge(game, r, c, Direction.East);
+                            TestEdge(game, r, c, Direction.South);
+                        }
+                    }
+                }
+                if (IsSolved(game)) return true;
+            } while (game.History.Count > progress);
 
+            // Then test every remaining edge
+            do
+            {
+                progress = game.History.Count;
+                // Pick un unassigned edge.
+                for (var r = 0; r <= board.Rows; r++)
+                {
+                    for (var c = 0; c <= board.Columns; c++)
+                    {
                         // Since we're checking every junction we only need to look at two edges each.
                         TestEdge(game, r, c, Direction.East);
                         TestEdge(game, r, c, Direction.South);

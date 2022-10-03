@@ -32,16 +32,16 @@ namespace SL.Shared.Structures
             get
             {
                 var lines = 0;
-                for (var i = 0; i < Edges.Length; i++)
+                var edges = Edges;
+                var length = edges.Length;
+                for (var i = 0; i < length; i++)
                 {
-                    var e = Edges[i];
+                    var e = edges[i];
                     if (e?.HasLine == true) lines++;
                 }
                 return lines;
             }
         }
-
-        public int NotLineCount => Edges.Count(e => e?.HasLine == false);
 
         // Hot path
         public int UnknownCount
@@ -49,9 +49,11 @@ namespace SL.Shared.Structures
             get
             {
                 var unknown = 0;
-                for (var i = 0; i < Edges.Length; i++)
+                var edges = Edges;
+                var length = edges.Length;
+                for (var i = 0; i < length; i++)
                 {
-                    var e = Edges[i];
+                    var e = edges[i];
                     if (e != null && !e.HasLine.HasValue) unknown++;
                 }
                 return unknown;

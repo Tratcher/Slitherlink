@@ -21,15 +21,30 @@ namespace SL.Shared.Structures
             get
             {
                 var lineCount = 0;
-                for (int i = 0; i < Edges.Length; i++)
+                var edges = Edges;
+                var length = edges.Length;
+                for (int i = 0; i < length; i++)
                 {
-                    if (Edges[i].HasLine == true) lineCount++;
+                    if (edges[i].HasLine == true) lineCount++;
                 }
                 return lineCount;
             }
         }
 
-        public int Undetermined => Edges.Count(e => !e.HasLine.HasValue);
+        public int Undetermined
+        {
+            get
+            {
+                var lineCount = 0;
+                var edges = Edges;
+                var length = edges.Length;
+                for (int i = 0; i < length; i++)
+                {
+                    if (!edges[i].HasLine.HasValue) lineCount++;
+                }
+                return lineCount;
+            }
+        }
 
         public Junction GetJunction(int dir1, int dir2)
         {
