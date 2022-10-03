@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		DesignNotes.md.txt = DesignNotes.md.txt
 		Slitherlink.PublishSettings = Slitherlink.PublishSettings
+		SquareHugeHard105.csv = SquareHugeHard105.csv
 		SquareLargeEasy2.csv = SquareLargeEasy2.csv
 		SquareLargeHard37.csv = SquareLargeHard37.csv
 		SquareLargeNormal7.csv = SquareLargeNormal7.csv

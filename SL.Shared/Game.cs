@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -125,7 +126,7 @@ namespace SL.Shared
                     throw new InvalidOperationException($"Junction at r:{junction1Row} c:{junction1Column} already has enough lines.");
                 }
                 var junction2 = Board.GetJunction(junction2Row, junction2Column);
-                if (hasLine == true && junction1.LineCount >= 2)
+                if (hasLine == true && junction2.LineCount >= 2)
                 {
                     throw new InvalidOperationException($"Junction at r:{junction2Row} c:{junction2Column} already has enough lines.");
                 }
@@ -184,8 +185,8 @@ namespace SL.Shared
         }
 
         // TODO: Undo doesn't revert inferences made by the solver
-        // Maybe we should clear inferences after running the solver (unless we want to display them?)
-        // Otherwise we should add them to the History
+        // This is mitgated by clearing inferences each time we start the solver.
+        // Consider adding them to the History
         public void Undo()
         {
             if (!History.TryPop(out var move)) return;
@@ -208,6 +209,14 @@ namespace SL.Shared
             edge.HasLine = move.NewValue;
 
             History.Push(move);
+        }
+
+        public void Reset(int historyIndex = 0)
+        {
+            while (historyIndex < History.Count)
+            {
+                Undo();
+            }
         }
     }
 }

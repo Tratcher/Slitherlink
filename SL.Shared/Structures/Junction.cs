@@ -31,6 +31,19 @@ namespace SL.Shared.Structures
 
         public int NotLineCount => Edges.Count(e => e?.HasLine == false);
 
-        public int UnknownCount => Edges.Count(e => e?.HasLine.HasValue == false);
+        // Hot path
+        public int UnknownCount
+        {
+            get
+            {
+                var unknown = 0;
+                for (var i = 0; i < Edges.Length; i++)
+                {
+                    var e = Edges[i];
+                    if (e != null && !e.HasLine.HasValue) unknown++;
+                }
+                return unknown;
+            }
+        }
     }
 }

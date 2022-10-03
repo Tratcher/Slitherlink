@@ -16,9 +16,9 @@ foreach (var filePath in Directory.GetFiles(rootDir, "*.csv"))
 
     try
     {
-        Solver.Solve(game);
+        Solver.SolveWithLookAhead(game);
     }
-    catch (InvalidOperationException ioe)
+    catch (Exception ioe)
     {
         Console.WriteLine(ioe);
     }

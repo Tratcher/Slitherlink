@@ -68,6 +68,90 @@ namespace SL.Shared
             return true;
         }
 
+        public static bool SolveWithLookAhead(Game game)
+        {
+            if (Solve(game)) return true;
+            var board = game.Board;
+
+            int progress;
+            do
+            {
+                progress = game.History.Count;
+                // Pick un unassigned edge.
+                for (var r = 0; r <= board.Rows; r++)
+                {
+                    for (var c = 0; c <= board.Columns; c++)
+                    {
+
+                        // Since we're checking every junction we only need to look at two edges each.
+                        TestEdge(game, r, c, Direction.East);
+                        TestEdge(game, r, c, Direction.South);
+                    }
+                }
+            } while (game.History.Count > progress);
+
+            return IsSolved(game);
+
+            static void TestEdge(Game game, int row, int column, int direction)
+            {
+                var junction = game.Board.GetJunction(row, column);
+                var edge = junction.Edges[direction];
+                if (edge == null || edge.HasLine.HasValue) return;
+
+                var checkpoint = game.History.Count;
+
+                // Set it to true. Try solving.
+                game.MarkJunctionEdge(row, column, direction, true);
+                try
+                {
+                    if (Solve(game)) return;
+                }
+                catch (InvalidOperationException ioe1)
+                {
+                    // If it fails, this edge must be false.
+                    game.Reset(checkpoint);
+                    game.MarkJunctionEdge(row, column, direction, false);
+                    try
+                    {
+                        Solve(game);
+                    }
+                    catch (InvalidOperationException ioe2)
+                    {
+                        game.Reset(checkpoint);
+                        throw new AggregateException($"r:{row}, c:{column}, d:{direction} breaks in both directions.", ioe1, ioe2);
+                    }
+                    return;
+                }
+
+                //  else, set it to false and try solving
+                game.Reset(checkpoint);
+                game.MarkJunctionEdge(row, column, direction, false);
+                try
+                {
+                    if (Solve(game)) return;
+                }
+                catch (InvalidOperationException ioe1)
+                {
+                    // If that fails, set it to true and re-solve
+                    game.Reset(checkpoint);
+                    game.MarkJunctionEdge(row, column, direction, true);
+                    try
+                    {
+                        Solve(game);
+                    }
+                    catch (InvalidOperationException ioe2)
+                    {
+                        game.Reset(checkpoint);
+                        throw new AggregateException($"r:{row}, c:{column}, d:{direction} breaks in both directions.", ioe1, ioe2);
+                    }
+                    return;
+                }
+
+                //  else reset and move-on.
+                game.Reset(checkpoint);
+            }
+        }
+
         private static void ClearInferences(Game game)
         {
             var board = game.Board;
@@ -309,7 +393,7 @@ namespace SL.Shared
                 for (var c = 0; c < board.Columns; c++)
                 {
                     var cell = board[r, c];
-                    if (cell.Hint != 3)
+                    if (cell.Hint != 3 || cell.Undetermined == 0)
                     {
                         continue;
                     }
@@ -460,22 +544,15 @@ namespace SL.Shared
                 for (var c = 0; c <= board.Columns; c++)
                 {
                     var junction = board.GetJunction(r, c);
+                    var unknown = junction.UnknownCount;
+                    if (unknown == 0 || unknown > 2) continue;
+                    var lines = junction.LineCount;
+                    var totalAlive = lines + unknown;
+
                     var north = junction.Edges[Direction.North];
                     var south = junction.Edges[Direction.South];
                     var east = junction.Edges[Direction.East];
                     var west = junction.Edges[Direction.West];
-
-                    var northIsAlive = north != null && north.HasLine != false;
-                    var southIsAlive = south != null && south.HasLine != false;
-                    var eastIsAlive = east != null && east.HasLine != false;
-                    var westIsAlive = west != null && west.HasLine != false;
-                    var totalAlive = (northIsAlive ? 1 : 0) + (southIsAlive ? 1 : 0) + (eastIsAlive ? 1 : 0) + (westIsAlive ? 1 : 0);
-
-                    var northHasLine = north?.HasLine == true;
-                    var southHasLine = south?.HasLine == true;
-                    var eastHasLine = east?.HasLine == true;
-                    var westHasLine = west?.HasLine == true;
-                    var totalLines = (northHasLine ? 1 : 0) + (southHasLine ? 1 : 0) + (eastHasLine ? 1 : 0) + (westHasLine ? 1 : 0);
 
                     if (totalAlive == 1)
                     {
@@ -497,7 +574,7 @@ namespace SL.Shared
                             progress |= game.MarkJunctionEdge(r, c, Direction.West, false);
                         }
                     }
-                    else if (totalLines == 2)
+                    else if (lines == 2)
                     {
                         // The line has already entered and exited this intercection. Remaining edges can be x'd.
                         if (north != null && !north.HasLine.HasValue)
@@ -539,8 +616,8 @@ namespace SL.Shared
                         var south = cell.Edges[Direction.South];
                         var east = cell.Edges[Direction.East];
                         var west = cell.Edges[Direction.West];
-                        var availableEdges = cell.Lines + cell.Undetermined;
                         var totalLines = cell.Lines;
+                        var availableEdges = totalLines + cell.Undetermined;
 
                         // Possible edges matches hit, mark them all as lines
                         if (availableEdges == cell.Hint)
@@ -1012,22 +1089,21 @@ namespace SL.Shared
                 return !edge1.HasLine.HasValue && edge2.HasLine != false
                     || !edge2.HasLine.HasValue && edge1.HasLine != false;
             }
+        }
 
-            static int? GetHint(Board board, int r, int c)
+        private static int? GetHint(Board board, int r, int c)
+        {
+            if (0 <= r && r < board.Rows
+                && 0 <= c && c < board.Columns)
             {
-                if (0 <= r && r < board.Rows
-                    && 0 <= c && c < board.Columns)
-                {
-                    return board[r, c].Hint;
-                }
-                return null;
+                return board[r, c].Hint;
             }
+            return null;
         }
 
         //  - Line into a hint's junction with three available edges. Exiting would eliminate two edges from the cell. If that does not leave enough remaining edges, exiting here isn't possible. (LH38 - 7,13)
-        // TODO
-        // - This should cascade. If E.g. HH105 6,22 SE junction can't turn right, otherwise the 2 would cut off the diagonaly 3. Also for HH105 24,18 N.
-
+        // - This should cascade. If E.g. HH105 6,22 SE junction can't turn right, otherwise the 2 would cut off the diagonaly 3. Also for HH105 24,18 N, and 18,9 N, and 13,22 SE, and 8,13 SW, 10,8 NW.
+        // TODO cascading into 1's 
         private static bool InferExit(Game game)
         {
             bool progress = false;
@@ -1037,30 +1113,55 @@ namespace SL.Shared
                 for (var c = 0; c < board.Columns; c++)
                 {
                     var cell = board[r, c];
-                    // Check if exiting and marking the two cell edges as X would reduce the available cell edges below the hint count.
-                    if (!(cell.Hint > 0) || cell.Undetermined + cell.Lines - 2 >= cell.Hint)
+                    if (!cell.Hint.HasValue || cell.Hint == 0)
                     {
                         continue;
                     }
-
-                    // For each junction
-                    // if it has one external line in and three unassigned edges available
-                    // If yes, x the exit.
-                    if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r, c), Direction.North, Direction.West))
+                    // Check if exiting and marking the two cell edges as X would reduce the available cell edges below the hint count.
+                    if (cell.Undetermined + cell.Lines - 2 < cell.Hint)
                     {
-                        progress |= InferJunctionXor(game, r, c, Direction.North, Direction.West);
+                        // For each junction
+                        // if it has one external line in and three unassigned edges available
+                        // If yes, x the exit.
+                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r, c), Direction.North, Direction.West))
+                        {
+                            progress |= InferJunctionXor(game, r, c, Direction.North, Direction.West);
+                        }
+                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r, c + 1), Direction.North, Direction.East))
+                        {
+                            progress |= InferJunctionXor(game, r, c + 1, Direction.North, Direction.East);
+                        }
+                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r + 1, c), Direction.South, Direction.West))
+                        {
+                            progress |= InferJunctionXor(game, r + 1, c, Direction.South, Direction.West);
+                        }
+                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
+                        {
+                            progress |= InferJunctionXor(game, r + 1, c + 1, Direction.South, Direction.East);
+                        }
                     }
-                    if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r, c + 1), Direction.North, Direction.East))
+                    // What if it eliminates just the right number of edges, does this cause a cascade? This should only be possible with 2's.
+                    if (cell.Hint == 2 && cell.Undetermined >= 2)
                     {
-                        progress |= InferJunctionXor(game, r, c + 1, Direction.North, Direction.East);
-                    }
-                    if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r + 1, c), Direction.South, Direction.West))
-                    {
-                        progress |= InferJunctionXor(game, r + 1, c, Direction.South, Direction.West);
-                    }
-                    if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
-                    {
-                        progress |= InferJunctionXor(game, r + 1, c + 1, Direction.South, Direction.East);
+                        // For each junction
+                        // if it has one external line in and three unassigned edges available
+                        // If yes, x the exit.                        
+                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r, c), Direction.North, Direction.West))
+                        {
+                            progress |= InferJunctionXor(game, r, c, Direction.North, Direction.West);
+                        }
+                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r, c + 1), Direction.North, Direction.East))
+                        {
+                            progress |= InferJunctionXor(game, r, c + 1, Direction.North, Direction.East);
+                        }
+                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r + 1, c), Direction.South, Direction.West))
+                        {
+                            progress |= InferJunctionXor(game, r + 1, c, Direction.South, Direction.West);
+                        }
+                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
+                        {
+                            progress |= InferJunctionXor(game, r + 1, c + 1, Direction.South, Direction.East);
+                        }
                     }
                 }
             }
@@ -1070,6 +1171,124 @@ namespace SL.Shared
             {
                 return junction.EdgeCount == 4 && junction.LineCount == 1 && junction.UnknownCount == 3
                     && (junction.Edges[dir1]?.HasLine == true || junction.Edges[dir2]?.HasLine == true);
+            }
+
+            static bool CheckForTwoCascade(Board board, int r, int c, Junction junction, int dir1, int dir2)
+            {
+                // Is there one incoming line that can exit?
+                if (!(junction.EdgeCount == 4 && junction.LineCount == 1 && junction.UnknownCount >= 2
+                    && (junction.Edges[dir1]?.HasLine == true || junction.Edges[dir2]?.HasLine == true)))
+                {
+                    return false;
+                }
+                var cell = board[r, c];
+                // Is the next diagonal cell hinted? Would making a corner there cause it to loose too many edges? If it's a two, recurse.
+                var dir3 = Direction.Opposite(dir1);
+                var dir4 = Direction.Opposite(dir2);
+                switch (dir3)
+                {
+                    case Direction.North:
+                        r--;
+                        break;
+                    case Direction.South:
+                        r++;
+                        break;
+                    case Direction.East:
+                        c++;
+                        break;
+                    case Direction.West:
+                        c--;
+                        break;
+                }
+                switch (dir4)
+                {
+                    case Direction.North:
+                        r--;
+                        break;
+                    case Direction.South:
+                        r++;
+                        break;
+                    case Direction.East:
+                        c++;
+                        break;
+                    case Direction.West:
+                        c--;
+                        break;
+                }
+
+                var nextHint = GetHint(board, r, c);
+                if (nextHint == null) return false; // No hint
+                if (nextHint == 3) return true; // Can never take a corner out of a three
+                if (nextHint == 2)
+                {
+                    // Recurse
+                    return CheckForTwoCascadeRecursive(board, r, c, cell.GetJunction(dir3, dir4), dir3, dir4);
+                }
+                // TODO: 1
+
+                return false;
+            }
+
+            static bool CheckForTwoCascadeRecursive(Board board, int r, int c, Junction junction, int dir1, int dir2)
+            {
+                // We're inferring that this junction already exited, so make sure there aren't any inward lines from it
+                // And that removing those edges wouldn't leave it with too few.
+                if (junction.EdgeCount != 4) return false;
+                // An inward line, that would conflict with an outward corner
+                if (junction.Edges[dir1]?.HasLine == true || junction.Edges[dir2]?.HasLine == true)
+                {
+                    return true;
+                }
+                // HH105 18,16 NW. The diagonal 2 is already down an edge, it can't afford to lose two more.
+                var cell = board[r, c];
+                /* // TODO: Breaks HH105 21,1
+                if (cell.Hint == 2 && cell.Undetermined < 4)
+                {
+                    return true;
+                }*/
+                // Is the next diagonal cell hinted? Would making a corner there cause it to loose too many edges? If it's a two, recurse.
+                switch (dir1)
+                {
+                    case Direction.North:
+                        r--;
+                        break;
+                    case Direction.South:
+                        r++;
+                        break;
+                    case Direction.East:
+                        c++;
+                        break;
+                    case Direction.West:
+                        c--;
+                        break;
+                }
+                switch (dir2)
+                {
+                    case Direction.North:
+                        r--;
+                        break;
+                    case Direction.South:
+                        r++;
+                        break;
+                    case Direction.East:
+                        c++;
+                        break;
+                    case Direction.West:
+                        c--;
+                        break;
+                }
+
+                var nextHint = GetHint(board, r, c);
+                if (nextHint == null) return false; // No hint
+                if (nextHint == 3) return true; // Can never take a corner out of a three
+                if (nextHint == 2)
+                {
+                    // Recurse
+                    return CheckForTwoCascadeRecursive(board, r, c, cell.GetJunction(dir1, dir2), dir1, dir2);
+                }
+                // TODO: 1
+
+                return false;
             }
         }
 
@@ -1215,6 +1434,7 @@ namespace SL.Shared
         // (LH37) When there's two adjacent exits from one junciton, infer xor (then make sure infer2 cascades xors)
         // TODO:
         // - Consider xor inferences as fixed entry/exit points or lack thereof (SH43)
+        // - HH105 19,16 - inferred xor entrance, can x the other exit
         private static bool CheckSingleCellParity(Game game)
         {
             bool progress = false;

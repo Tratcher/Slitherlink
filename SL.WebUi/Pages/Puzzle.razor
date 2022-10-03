@@ -21,10 +21,21 @@ else
 
     <button class="btn btn-primary" @onclick="Reset">Reset</button>
     <button class="btn btn-primary" @onclick="Solve">Solve</button>
+    <button class="btn btn-primary" @onclick="LookAhead">Look Ahead</button>
     <button class="btn btn-primary" @onclick="Undo">Undo</button>
     <button class="btn btn-primary" @onclick="Redo">Redo</button>
+    <br/>
+    <label>Checkpoint: @Checkpoint</label>
+    <br/>
+    <button class="btn btn-primary" @onclick="SetCheckpoint">Set</button>
+    <button class="btn btn-primary" @onclick="ClearCheckpoint">Clear</button>
+    <button class="btn btn-primary" @onclick="RestoreCheckpoint">Restore</button>
+    <br/>
+    <label>Progress: @_game.History.Count</label>
+    <br/>
+    <label>Last Move: @(_game.History.Count > 0 ? _game.History.Peek().ToString() : string.Empty)</label>
 
-    var board = _game.Board;
+var board = _game.Board;
     var scale = 27; // The table starts to deform (adding row height) if I use a smaller value than 27. What's taking up extra height?
     var width = scale * 2 * board.Columns + 3 * scale;
     var height = scale * 2 * board.Rows + 3 * scale;
@@ -269,6 +280,8 @@ else
 
     private Game? _game;
 
+    public int Checkpoint { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         Reset();
@@ -287,10 +300,24 @@ else
         }
     }
 
+    public void LookAhead()
+    {
+        try
+        {
+            Solver.SolveWithLookAhead(_game);
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.ToString();
+        }
+    }
+
     public void Reset()
     {
         Error = null;
         _game = null;
+        Checkpoint = 0;
         var path = (HostEnvironment.IsDevelopment() ? ".." : ".") + Path.DirectorySeparatorChar;
         // TODO: Only accept names with alphanumerics
         if (string.IsNullOrEmpty(Name))
@@ -322,6 +349,21 @@ else
     public void Redo()
     {
         _game?.Redo();
+    }
+
+    public void SetCheckpoint()
+    {
+        Checkpoint = _game.History.Count;
+    }
+
+    public void ClearCheckpoint()
+    {
+        Checkpoint = 0;
+    }
+
+    public void RestoreCheckpoint()
+    {
+        _game.Reset(Checkpoint);
     }
 
     public void UpdateJunctionEdge(MouseEventArgs e, int row, int column, int dir)

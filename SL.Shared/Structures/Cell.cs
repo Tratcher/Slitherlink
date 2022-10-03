@@ -15,8 +15,25 @@ namespace SL.Shared.Structures
 
         public int Xs => Edges.Count(e => e.HasLine == false);
 
-        public int Lines => Edges.Count(e => e.HasLine == true);
+        // Not Linq because of hot path
+        public int Lines
+        {
+            get
+            {
+                var lineCount = 0;
+                for (int i = 0; i < Edges.Length; i++)
+                {
+                    if (Edges[i].HasLine == true) lineCount++;
+                }
+                return lineCount;
+            }
+        }
 
         public int Undetermined => Edges.Count(e => !e.HasLine.HasValue);
+
+        public Junction GetJunction(int dir1, int dir2)
+        {
+            return Edges[dir1].Junctions[dir2 % 2];
+        }
     }
 }

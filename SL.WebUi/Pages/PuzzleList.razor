@@ -20,7 +20,8 @@ else
             <tr>
                 <th>Play</th>
                 <th>Name</th>
-                <th>Solved by AI</th>
+                <th>Solved by Analysys</th>
+                <th>Solved by Look Ahead</th>
                 <th>Errors</th>
             </tr>
         </thead>
@@ -33,6 +34,7 @@ else
                     </td>
                     <td>@puzzle.Name</td>
                     <td>@puzzle.Solved</td>
+                    <td>@puzzle.SolvedByLookAhead</td>
                     <td>@puzzle.Errors</td>
                 </tr>
             }
@@ -52,11 +54,14 @@ else
             var puzzle = new Game(GameLoader.ReadCsv(new StreamReader(file)));
             var errors = "";
             var solved = false;
+            var lookAhead = false;
             try
             {
                 solved = Solver.Solve(puzzle);
+                puzzle.Reset();
+                lookAhead = Solver.SolveWithLookAhead(puzzle);
             }
-            catch (InvalidOperationException ioe)
+            catch (Exception ioe)
             {
                 errors = ioe.ToString();
             }
@@ -65,6 +70,7 @@ else
             {
                 Name = Path.GetFileNameWithoutExtension(file),
                 Solved = solved,
+                SolvedByLookAhead = lookAhead,
                 Errors = errors
             });
         }
@@ -76,6 +82,7 @@ else
     {
         public string Name { get; init; }
         public bool Solved { get; init; }
+        public bool SolvedByLookAhead { get; init; }
         public string Errors { get; init; }
     }
 }
