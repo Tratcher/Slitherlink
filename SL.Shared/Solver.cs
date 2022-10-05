@@ -1,7 +1,6 @@
 ﻿using SL.Shared.Structures;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics;
 
 namespace SL.Shared
@@ -13,10 +12,12 @@ namespace SL.Shared
         private readonly Stack<KeyValuePair<int, int>> _cellsToTry = new();
         private readonly Stack<KeyValuePair<int, int>> _junctionsToTry = new();
         private readonly Game _game;
+        private readonly Board _board;
 
         private Solver(Game game)
         {
             _game = game;
+            _board = game.Board;
         }
 
         public static bool Solve(Game game)
@@ -56,29 +57,7 @@ namespace SL.Shared
                 break;
             } while (true);
 
-            return IsSolved(game);
-        }
-
-        private static bool IsSolved(Game game)
-        {
-            // Are all hints satisfied
-            var board = game.Board;
-            for (var r = 0; r < board.Rows; r++)
-            {
-                for (var c = 0; c < board.Columns; c++)
-                {
-                    var cell = board[r, c];
-                    if (cell.Hint.HasValue)
-                    {
-                        if (cell.Lines != cell.Hint) return false;
-                    }
-                }
-            }
-
-            // TODO:
-            // Do all lines belong to one continuous loop
-
-            return true;
+            return game.IsSolved();
         }
 
         public static bool SolveWithLookAhead(Game game)
@@ -105,7 +84,7 @@ namespace SL.Shared
                         }
                     }
                 }
-                if (IsSolved(game)) return true;
+                if (game.IsSolved()) return true;
             } while (game.History.Count > progress);
 
             // Then test every remaining edge
@@ -124,7 +103,7 @@ namespace SL.Shared
                 }
             } while (game.History.Count > progress);
 
-            return IsSolved(game);
+            return game.IsSolved();
 
             static void TestEdge(Game game, int row, int column, int direction)
             {
@@ -188,15 +167,25 @@ namespace SL.Shared
 
         private void ClearInferences()
         {
-            var board = _game.Board;
-            for (var r = 0; r <= board.Rows; r++)
+            for (var r = 0; r <= _board.Rows; r++)
             {
-                for (var c = 0; c <= board.Columns; c++)
+                for (var c = 0; c <= _board.Columns; c++)
                 {
-                    var junction = board.GetJunction(r, c);
+                    var junction = _board.GetJunction(r, c);
                     junction.Inferences.Clear();
                 }
             }
+        }
+
+        public bool MarkCellEdge(int row, int column, int direction, bool? hasLine)
+        {
+            return _game.MarkCellEdge(row, column, direction, hasLine);
+        }
+
+
+        public bool MarkJunctionEdge(int row, int column, int direction, bool? hasLine)
+        {
+            return _game.MarkJunctionEdge(row, column, direction, hasLine);
         }
 
         /*
@@ -221,53 +210,52 @@ namespace SL.Shared
         */
         private void MarkAdjacentThrees()
         {
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint == 3)
                     {
                         // Since we check every cell we only need to look east and south.
 
                         // East
-                        if (c < board.Columns - 1 && board[r, c + 1].Hint == 3)
+                        if (c < _board.Columns - 1 && _board[r, c + 1].Hint == 3)
                         {
-                            _game.MarkCellEdge(r, c, Direction.West, true);
-                            _game.MarkCellEdge(r, c, Direction.East, true);
-                            _game.MarkCellEdge(r, c + 1, Direction.East, true);
+                            MarkCellEdge(r, c, Direction.West, true);
+                            MarkCellEdge(r, c, Direction.East, true);
+                            MarkCellEdge(r, c + 1, Direction.East, true);
 
                             // Also x the north and south east edged as innaccessible
 
                             if (r > 0)
                             {
-                                _game.MarkCellEdge(r - 1, c, Direction.East, false);
+                                MarkCellEdge(r - 1, c, Direction.East, false);
                             }
 
-                            if (r < board.Rows - 1)
+                            if (r < _board.Rows - 1)
                             {
-                                _game.MarkCellEdge(r + 1, c, Direction.East, false);
+                                MarkCellEdge(r + 1, c, Direction.East, false);
                             }
                         }
 
                         // South
-                        if (r < board.Rows - 1 && board[r + 1, c].Hint == 3)
+                        if (r < _board.Rows - 1 && _board[r + 1, c].Hint == 3)
                         {
-                            _game.MarkCellEdge(r, c, Direction.North, true);
-                            _game.MarkCellEdge(r, c, Direction.South, true);
-                            _game.MarkCellEdge(r + 1, c, Direction.South, true);
+                            MarkCellEdge(r, c, Direction.North, true);
+                            MarkCellEdge(r, c, Direction.South, true);
+                            MarkCellEdge(r + 1, c, Direction.South, true);
 
                             // Also x the east and west south edged as innaccessible
 
                             if (c > 0)
                             {
-                                _game.MarkCellEdge(r, c - 1, Direction.South, false);
+                                MarkCellEdge(r, c - 1, Direction.South, false);
                             }
 
-                            if (c < board.Columns - 1)
+                            if (c < _board.Columns - 1)
                             {
-                                _game.MarkCellEdge(r, c + 1, Direction.South, false);
+                                MarkCellEdge(r, c + 1, Direction.South, false);
                             }
                         }
                     }
@@ -280,7 +268,7 @@ namespace SL.Shared
         // - This also happens if there is a consecutive diagonal of 2s in between
         private static void MarkDiagonalThrees(Game game)
         {
-            var board = game.Board;
+            var board = game._board;
             for (var r = 0; r < board.Rows; r++)
             {
                 for (var c = 0; c < board.Columns; c++)
@@ -321,12 +309,11 @@ namespace SL.Shared
         private bool MarkThreesWithIncomingLines()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint != 3)
                     {
                         continue;
@@ -335,28 +322,28 @@ namespace SL.Shared
                     // Check each junction. If it has an external line then mark the opposite edges as lines.
 
                     // NW
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r, c), Direction.North, Direction.West, allowUnknown: true))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r, c), Direction.North, Direction.West, allowUnknown: true))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, true);
+                        progress |= MarkCellEdge(r, c, Direction.East, true);
+                        progress |= MarkCellEdge(r, c, Direction.South, true);
                     }
                     // NE
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r, c + 1), Direction.North, Direction.East, allowUnknown: true))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r, c + 1), Direction.North, Direction.East, allowUnknown: true))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                        progress |= MarkCellEdge(r, c, Direction.South, true);
+                        progress |= MarkCellEdge(r, c, Direction.West, true);
                     }
                     // SE
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r + 1, c + 1), Direction.South, Direction.East, allowUnknown: true))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r + 1, c + 1), Direction.South, Direction.East, allowUnknown: true))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                        progress |= MarkCellEdge(r, c, Direction.North, true);
+                        progress |= MarkCellEdge(r, c, Direction.West, true);
                     }
                     // SW
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r + 1, c), Direction.South, Direction.West, allowUnknown: true))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r + 1, c), Direction.South, Direction.West, allowUnknown: true))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, true);
+                        progress |= MarkCellEdge(r, c, Direction.East, true);
+                        progress |= MarkCellEdge(r, c, Direction.North, true);
                     }
                 }
             }
@@ -369,12 +356,11 @@ namespace SL.Shared
         private bool MarkOnesInACorner()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint != 1)
                     {
                         continue;
@@ -382,32 +368,32 @@ namespace SL.Shared
 
                     if (IsCorner(cell, Direction.North, Direction.East))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, false);
+                        progress |= MarkCellEdge(r, c, Direction.North, false);
+                        progress |= MarkCellEdge(r, c, Direction.East, false);
                         progress |= InferJunctionXor(r + 1, c, Direction.North, Direction.East); // SW
                         progress |= InferJunctionXor(r + 1, c, Direction.South, Direction.West); // SW
                     }
 
                     if (IsCorner(cell, Direction.South, Direction.East))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, false);
+                        progress |= MarkCellEdge(r, c, Direction.South, false);
+                        progress |= MarkCellEdge(r, c, Direction.East, false);
                         progress |= InferJunctionXor(r, c, Direction.South, Direction.East); // NW
                         progress |= InferJunctionXor(r, c, Direction.North, Direction.West); // NW
                     }
 
                     if (IsCorner(cell, Direction.South, Direction.West))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, false);
+                        progress |= MarkCellEdge(r, c, Direction.South, false);
+                        progress |= MarkCellEdge(r, c, Direction.West, false);
                         progress |= InferJunctionXor(r, c + 1, Direction.South, Direction.West); // NE
                         progress |= InferJunctionXor(r, c + 1, Direction.North, Direction.East); // NE
                     }
 
                     if (IsCorner(cell, Direction.North, Direction.West))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, false);
+                        progress |= MarkCellEdge(r, c, Direction.North, false);
+                        progress |= MarkCellEdge(r, c, Direction.West, false);
                         progress |= InferJunctionXor(r + 1, c + 1, Direction.North, Direction.West); // SE
                         progress |= InferJunctionXor(r + 1, c + 1, Direction.South, Direction.East); // SE
                     }
@@ -421,12 +407,11 @@ namespace SL.Shared
         private bool MarkThreesInACorner()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint != 3 || cell.Undetermined == 0)
                     {
                         continue;
@@ -434,32 +419,32 @@ namespace SL.Shared
 
                     if (IsCorner(cell, Direction.North, Direction.East))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, true);
+                        progress |= MarkCellEdge(r, c, Direction.North, true);
+                        progress |= MarkCellEdge(r, c, Direction.East, true);
                         progress |= InferJunctionXor(r + 1, c, Direction.North, Direction.East); // SW
                         progress |= InferJunctionXor(r + 1, c, Direction.South, Direction.West); // SW
                     }
 
                     if (IsCorner(cell, Direction.South, Direction.East))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, true);
+                        progress |= MarkCellEdge(r, c, Direction.South, true);
+                        progress |= MarkCellEdge(r, c, Direction.East, true);
                         progress |= InferJunctionXor(r, c, Direction.North, Direction.West); // NW
                         progress |= InferJunctionXor(r, c, Direction.South, Direction.East); // NW
                     }
 
                     if (IsCorner(cell, Direction.South, Direction.West))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                        progress |= MarkCellEdge(r, c, Direction.South, true);
+                        progress |= MarkCellEdge(r, c, Direction.West, true);
                         progress |= InferJunctionXor(r, c + 1, Direction.North, Direction.East); // NE
                         progress |= InferJunctionXor(r, c + 1, Direction.South, Direction.West); // NE
                     }
 
                     if (IsCorner(cell, Direction.North, Direction.West))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, true);
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                        progress |= MarkCellEdge(r, c, Direction.North, true);
+                        progress |= MarkCellEdge(r, c, Direction.West, true);
                         progress |= InferJunctionXor(r + 1, c + 1, Direction.North, Direction.West); // SE
                         progress |= InferJunctionXor(r + 1, c + 1, Direction.South, Direction.East); // SE
                     }
@@ -479,12 +464,11 @@ namespace SL.Shared
         private bool MarkTwosInACorner()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint != 2)
                     {
                         continue;
@@ -500,10 +484,10 @@ namespace SL.Shared
 
                         progress |= MarkOutgoingSingleLine(r + 1, c, Direction.South, Direction.West, false);
                         if (IsAThree(_game, r + 1, c - 1)
-                            || JunctionHasOneOutwardLine(board.GetJunction(r + 1, c), Direction.South, Direction.West, allowUnknown: true)) // SW
+                            || JunctionHasOneOutwardLine(_board.GetJunction(r + 1, c), Direction.South, Direction.West, allowUnknown: true)) // SW
                         {
-                            progress |= _game.MarkCellEdge(r, c, Direction.North, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.East, true);
+                            progress |= MarkCellEdge(r, c, Direction.North, true);
+                            progress |= MarkCellEdge(r, c, Direction.East, true);
                         }
                     }
 
@@ -517,10 +501,10 @@ namespace SL.Shared
 
                         progress |= MarkOutgoingSingleLine(r, c, Direction.North, Direction.West, false);
                         if (IsAThree(_game, r - 1, c - 1)
-                            || JunctionHasOneOutwardLine(board.GetJunction(r, c), Direction.North, Direction.West, allowUnknown: true)) // NW
+                            || JunctionHasOneOutwardLine(_board.GetJunction(r, c), Direction.North, Direction.West, allowUnknown: true)) // NW
                         {
-                            progress |= _game.MarkCellEdge(r, c, Direction.South, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.East, true);
+                            progress |= MarkCellEdge(r, c, Direction.South, true);
+                            progress |= MarkCellEdge(r, c, Direction.East, true);
                         }
                     }
 
@@ -534,10 +518,10 @@ namespace SL.Shared
 
                         progress |= MarkOutgoingSingleLine(r, c + 1, Direction.North, Direction.East, false);
                         if (IsAThree(_game, r - 1, c + 1)
-                            || JunctionHasOneOutwardLine(board.GetJunction(r, c + 1), Direction.North, Direction.East, allowUnknown: true)) // NE
+                            || JunctionHasOneOutwardLine(_board.GetJunction(r, c + 1), Direction.North, Direction.East, allowUnknown: true)) // NE
                         {
-                            progress |= _game.MarkCellEdge(r, c, Direction.South, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                            progress |= MarkCellEdge(r, c, Direction.South, true);
+                            progress |= MarkCellEdge(r, c, Direction.West, true);
                         }
                     }
 
@@ -551,10 +535,10 @@ namespace SL.Shared
 
                         progress |= MarkOutgoingSingleLine(r + 1, c + 1, Direction.South, Direction.East, false);
                         if (IsAThree(_game, r + 1, c + 1)
-                            || JunctionHasOneOutwardLine(board.GetJunction(r + 1, c + 1), Direction.South, Direction.East, allowUnknown: true)) // SE
+                            || JunctionHasOneOutwardLine(_board.GetJunction(r + 1, c + 1), Direction.South, Direction.East, allowUnknown: true)) // SE
                         {
-                            progress |= _game.MarkCellEdge(r, c, Direction.North, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                            progress |= MarkCellEdge(r, c, Direction.North, true);
+                            progress |= MarkCellEdge(r, c, Direction.West, true);
                         }
                     }
                 }
@@ -572,12 +556,11 @@ namespace SL.Shared
         private bool MarkDeadEnds()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r <= board.Rows; r++)
+            for (var r = 0; r <= _board.Rows; r++)
             {
-                for (var c = 0; c <= board.Columns; c++)
+                for (var c = 0; c <= _board.Columns; c++)
                 {
-                    var junction = board.GetJunction(r, c);
+                    var junction = _board.GetJunction(r, c);
                     var unknown = junction.UnknownCount;
                     if (unknown == 0 || unknown > 2) continue;
                     var lines = junction.LineCount;
@@ -593,19 +576,19 @@ namespace SL.Shared
                         // No exit, x out the reaming edge
                         if (north != null && !north.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.North, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.North, false);
                         }
                         else if (south != null && !south.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.South, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.South, false);
                         }
                         else if (east != null && !east.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.East, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.East, false);
                         }
                         else if (west != null && !west.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.West, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.West, false);
                         }
                     }
                     else if (lines == 2)
@@ -613,19 +596,19 @@ namespace SL.Shared
                         // The line has already entered and exited this intercection. Remaining edges can be x'd.
                         if (north != null && !north.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.North, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.North, false);
                         }
                         if (south != null && !south.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.South, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.South, false);
                         }
                         if (east != null && !east.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.East, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.East, false);
                         }
                         if (west != null && !west.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.West, false);
+                            progress |= MarkJunctionEdge(r, c, Direction.West, false);
                         }
                     }
                 }
@@ -638,12 +621,11 @@ namespace SL.Shared
         private bool MarkLinesMatchingHints()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint.HasValue)
                     {
                         var undetermined = cell.Undetermined;
@@ -660,19 +642,19 @@ namespace SL.Shared
                         {
                             if (!north.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.North, true);
+                                progress |= MarkCellEdge(r, c, Direction.North, true);
                             }
                             if (!south.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.South, true);
+                                progress |= MarkCellEdge(r, c, Direction.South, true);
                             }
                             if (!east.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.East, true);
+                                progress |= MarkCellEdge(r, c, Direction.East, true);
                             }
                             if (!west.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                                progress |= MarkCellEdge(r, c, Direction.West, true);
                             }
                         }
                         // There are already enough lines to satisfy the hint, x out the remainder
@@ -680,19 +662,19 @@ namespace SL.Shared
                         {
                             if (!north.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.North, false);
+                                progress |= MarkCellEdge(r, c, Direction.North, false);
                             }
                             if (!south.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.South, false);
+                                progress |= MarkCellEdge(r, c, Direction.South, false);
                             }
                             if (!east.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.East, false);
+                                progress |= MarkCellEdge(r, c, Direction.East, false);
                             }
                             if (!west.HasLine.HasValue)
                             {
-                                progress |= _game.MarkCellEdge(r, c, Direction.West, false);
+                                progress |= MarkCellEdge(r, c, Direction.West, false);
                             }
                         }
                     }
@@ -705,12 +687,11 @@ namespace SL.Shared
         private bool ExtendLines()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r <= board.Rows; r++)
+            for (var r = 0; r <= _board.Rows; r++)
             {
-                for (var c = 0; c <= board.Columns; c++)
+                for (var c = 0; c <= _board.Columns; c++)
                 {
-                    var junction = board.GetJunction(r, c);
+                    var junction = _board.GetJunction(r, c);
                     if (junction.LineCount != 1) continue;
 
                     if (junction.UnknownCount == 1)
@@ -722,19 +703,19 @@ namespace SL.Shared
                         // Two possible lines and one is marked. Mark the other.
                         if (north != null && !north.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.North, true);
+                            progress |= MarkJunctionEdge(r, c, Direction.North, true);
                         }
                         else if (south != null && !south.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.South, true);
+                            progress |= MarkJunctionEdge(r, c, Direction.South, true);
                         }
                         else if (east != null && !east.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.East, true);
+                            progress |= MarkJunctionEdge(r, c, Direction.East, true);
                         }
                         else if (west != null && !west.HasLine.HasValue)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, Direction.West, true);
+                            progress |= MarkJunctionEdge(r, c, Direction.West, true);
                         }
                     }
                 }
@@ -748,12 +729,11 @@ namespace SL.Shared
         private bool DetectLoops()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r <= board.Rows; r++)
+            for (var r = 0; r <= _board.Rows; r++)
             {
-                for (var c = 0; c <= board.Columns; c++)
+                for (var c = 0; c <= _board.Columns; c++)
                 {
-                    var junction = board.GetJunction(r, c);
+                    var junction = _board.GetJunction(r, c);
                     var north = junction.Edges[Direction.North];
                     var south = junction.Edges[Direction.South];
                     var east = junction.Edges[Direction.East];
@@ -803,7 +783,7 @@ namespace SL.Shared
             if (FollowLine(startJunction) == endJunction)
             {
                 // Found a loop, x out this edge
-                return _game.MarkJunctionEdge(row, column, direction, false);
+                return MarkJunctionEdge(row, column, direction, false);
             }
 
             return false;
@@ -846,39 +826,38 @@ namespace SL.Shared
         private bool InferOnes()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint != 1 || cell.Lines > 0)
                     {
                         continue;
                     }
 
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r, c), Direction.North, Direction.West))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r, c), Direction.North, Direction.West))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, false);
+                        progress |= MarkCellEdge(r, c, Direction.East, false);
+                        progress |= MarkCellEdge(r, c, Direction.South, false);
                         progress |= InferJunctionXor(r, c, Direction.South, Direction.East);
                     }
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r, c + 1), Direction.North, Direction.East))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r, c + 1), Direction.North, Direction.East))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.South, false);
+                        progress |= MarkCellEdge(r, c, Direction.West, false);
+                        progress |= MarkCellEdge(r, c, Direction.South, false);
                         progress |= InferJunctionXor(r, c + 1, Direction.South, Direction.West);
                     }
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r + 1, c), Direction.South, Direction.West))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r + 1, c), Direction.South, Direction.West))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.East, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, false);
+                        progress |= MarkCellEdge(r, c, Direction.East, false);
+                        progress |= MarkCellEdge(r, c, Direction.North, false);
                         progress |= InferJunctionXor(r + 1, c, Direction.North, Direction.East);
                     }
-                    if (JunctionHasOneOutwardLine(board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
+                    if (JunctionHasOneOutwardLine(_board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
                     {
-                        progress |= _game.MarkCellEdge(r, c, Direction.North, false);
-                        progress |= _game.MarkCellEdge(r, c, Direction.West, false);
+                        progress |= MarkCellEdge(r, c, Direction.North, false);
+                        progress |= MarkCellEdge(r, c, Direction.West, false);
                         progress |= InferJunctionXor(r + 1, c + 1, Direction.North, Direction.West);
                     }
 
@@ -948,21 +927,20 @@ namespace SL.Shared
         private bool InferTwos()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint != 2 || cell.Lines > 1)
                     {
                         continue;
                     }
 
-                    var nwJ = board.GetJunction(r, c);
-                    var neJ = board.GetJunction(r, c + 1);
-                    var swJ = board.GetJunction(r + 1, c);
-                    var seJ = board.GetJunction(r + 1, c + 1);
+                    var nwJ = _board.GetJunction(r, c);
+                    var neJ = _board.GetJunction(r, c + 1);
+                    var swJ = _board.GetJunction(r + 1, c);
+                    var seJ = _board.GetJunction(r + 1, c + 1);
 
                     // Opposite corners
                     if (JunctionHasOneOutwardLine(nwJ, Direction.North, Direction.West))
@@ -1026,12 +1004,11 @@ namespace SL.Shared
         private bool InferThrees()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (cell.Hint != 3 || cell.Lines > 2)
                     {
                         continue;
@@ -1039,56 +1016,56 @@ namespace SL.Shared
 
                     // For each available corner
                     // Diagonally adjacent to a hint
-                    if (IsCornerAvailable(board.GetJunction(r, c), Direction.South, Direction.East) && GetHint(board, r - 1, c - 1) is int hintNW) // NW
+                    if (IsCornerAvailable(_board.GetJunction(r, c), Direction.South, Direction.East) && GetHint(r - 1, c - 1) is int hintNW) // NW
                     {
                         // check if making that a corner would reduce the diagonally adjacent cell below it's hint count. E.g. it would remove two possible edges.
-                        var diagonalCell = board[r - 1, c - 1];
+                        var diagonalCell = _board[r - 1, c - 1];
                         if (diagonalCell.Lines + diagonalCell.Undetermined - 2 < hintNW)
                         {
                             // If so, infer xor on that corner, and lines on the opposite corner
                             progress |= InferJunctionXor(r, c, Direction.North, Direction.West);
                             progress |= InferJunctionXor(r, c, Direction.South, Direction.East);
-                            progress |= _game.MarkCellEdge(r, c, Direction.South, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.East, true);
+                            progress |= MarkCellEdge(r, c, Direction.South, true);
+                            progress |= MarkCellEdge(r, c, Direction.East, true);
                         }
                     }
-                    if (IsCornerAvailable(board.GetJunction(r, c + 1), Direction.South, Direction.West) && GetHint(board, r - 1, c + 1) is int hintNE) // NE
+                    if (IsCornerAvailable(_board.GetJunction(r, c + 1), Direction.South, Direction.West) && GetHint(r - 1, c + 1) is int hintNE) // NE
                     {
                         // check if making that a corner would reduce the diagonally adjacent cell below it's hint count. E.g. it would remove two possible edges.
-                        var diagonalCell = board[r - 1, c + 1];
+                        var diagonalCell = _board[r - 1, c + 1];
                         if (diagonalCell.Lines + diagonalCell.Undetermined - 2 < hintNE)
                         {
                             // If so, infer xor on that corner, and lines on the opposite corner
                             progress |= InferJunctionXor(r, c + 1, Direction.North, Direction.East);
                             progress |= InferJunctionXor(r, c + 1, Direction.South, Direction.West);
-                            progress |= _game.MarkCellEdge(r, c, Direction.South, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                            progress |= MarkCellEdge(r, c, Direction.South, true);
+                            progress |= MarkCellEdge(r, c, Direction.West, true);
                         }
                     }
-                    if (IsCornerAvailable(board.GetJunction(r + 1, c + 1), Direction.North, Direction.West) && GetHint(board, r + 1, c + 1) is int hintSE) // SE
+                    if (IsCornerAvailable(_board.GetJunction(r + 1, c + 1), Direction.North, Direction.West) && GetHint(r + 1, c + 1) is int hintSE) // SE
                     {
                         // check if making that a corner would reduce the diagonally adjacent cell below it's hint count. E.g. it would remove two possible edges.
-                        var diagonalCell = board[r + 1, c + 1];
+                        var diagonalCell = _board[r + 1, c + 1];
                         if (diagonalCell.Lines + diagonalCell.Undetermined - 2 < hintSE)
                         {
                             // If so, infer xor on that corner, and lines on the opposite corner
                             progress |= InferJunctionXor(r + 1, c + 1, Direction.North, Direction.West);
                             progress |= InferJunctionXor(r + 1, c + 1, Direction.South, Direction.East);
-                            progress |= _game.MarkCellEdge(r, c, Direction.North, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.West, true);
+                            progress |= MarkCellEdge(r, c, Direction.North, true);
+                            progress |= MarkCellEdge(r, c, Direction.West, true);
                         }
                     }
-                    if (IsCornerAvailable(board.GetJunction(r + 1, c), Direction.North, Direction.East) && GetHint(board, r + 1, c - 1) is int hintSW) // SW
+                    if (IsCornerAvailable(_board.GetJunction(r + 1, c), Direction.North, Direction.East) && GetHint(r + 1, c - 1) is int hintSW) // SW
                     {
                         // check if making that a corner would reduce the diagonally adjacent cell below it's hint count. E.g. it would remove two possible edges.
-                        var diagonalCell = board[r + 1, c - 1];
+                        var diagonalCell = _board[r + 1, c - 1];
                         if (diagonalCell.Lines + diagonalCell.Undetermined - 2 < hintSW)
                         {
                             // If so, infer xor on that corner, and lines on the opposite corner
                             progress |= InferJunctionXor(r + 1, c, Direction.North, Direction.East);
                             progress |= InferJunctionXor(r + 1, c, Direction.South, Direction.West);
-                            progress |= _game.MarkCellEdge(r, c, Direction.North, true);
-                            progress |= _game.MarkCellEdge(r, c, Direction.East, true);
+                            progress |= MarkCellEdge(r, c, Direction.North, true);
+                            progress |= MarkCellEdge(r, c, Direction.East, true);
                         }
                     }
                 }
@@ -1117,12 +1094,12 @@ namespace SL.Shared
             }
         }
 
-        private static int? GetHint(Board board, int r, int c)
+        private int? GetHint(int r, int c)
         {
-            if (0 <= r && r < board.Rows
-                && 0 <= c && c < board.Columns)
+            if (0 <= r && r < _board.Rows
+                && 0 <= c && c < _board.Columns)
             {
-                return board[r, c].Hint;
+                return _board[r, c].Hint;
             }
             return null;
         }
@@ -1133,12 +1110,11 @@ namespace SL.Shared
         private bool InferExit()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
                     if (!cell.Hint.HasValue || cell.Hint == 0)
                     {
                         continue;
@@ -1149,19 +1125,19 @@ namespace SL.Shared
                         // For each junction
                         // if it has one external line in and three unassigned edges available
                         // If yes, x the exit.
-                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r, c), Direction.North, Direction.West))
+                        if (CheckIfExitingEliminatesTooManyEdges(_board.GetJunction(r, c), Direction.North, Direction.West))
                         {
                             progress |= InferJunctionXor(r, c, Direction.North, Direction.West);
                         }
-                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r, c + 1), Direction.North, Direction.East))
+                        if (CheckIfExitingEliminatesTooManyEdges(_board.GetJunction(r, c + 1), Direction.North, Direction.East))
                         {
                             progress |= InferJunctionXor(r, c + 1, Direction.North, Direction.East);
                         }
-                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r + 1, c), Direction.South, Direction.West))
+                        if (CheckIfExitingEliminatesTooManyEdges(_board.GetJunction(r + 1, c), Direction.South, Direction.West))
                         {
                             progress |= InferJunctionXor(r + 1, c, Direction.South, Direction.West);
                         }
-                        if (CheckIfExitingEliminatesTooManyEdges(board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
+                        if (CheckIfExitingEliminatesTooManyEdges(_board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
                         {
                             progress |= InferJunctionXor(r + 1, c + 1, Direction.South, Direction.East);
                         }
@@ -1172,19 +1148,19 @@ namespace SL.Shared
                         // For each junction
                         // if it has one external line in and three unassigned edges available
                         // If yes, x the exit.                        
-                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r, c), Direction.North, Direction.West))
+                        if (CheckForTwoCascade(r, c, _board.GetJunction(r, c), Direction.North, Direction.West))
                         {
                             progress |= InferJunctionXor(r, c, Direction.North, Direction.West);
                         }
-                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r, c + 1), Direction.North, Direction.East))
+                        if (CheckForTwoCascade(r, c, _board.GetJunction(r, c + 1), Direction.North, Direction.East))
                         {
                             progress |= InferJunctionXor(r, c + 1, Direction.North, Direction.East);
                         }
-                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r + 1, c), Direction.South, Direction.West))
+                        if (CheckForTwoCascade(r, c, _board.GetJunction(r + 1, c), Direction.South, Direction.West))
                         {
                             progress |= InferJunctionXor(r + 1, c, Direction.South, Direction.West);
                         }
-                        if (CheckForTwoCascade(board, r, c, board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
+                        if (CheckForTwoCascade(r, c, _board.GetJunction(r + 1, c + 1), Direction.South, Direction.East))
                         {
                             progress |= InferJunctionXor(r + 1, c + 1, Direction.South, Direction.East);
                         }
@@ -1199,7 +1175,7 @@ namespace SL.Shared
                     && (junction.Edges[dir1]?.HasLine == true || junction.Edges[dir2]?.HasLine == true);
             }
 
-            static bool CheckForTwoCascade(Board board, int r, int c, Junction junction, int dir1, int dir2)
+            bool CheckForTwoCascade(int r, int c, Junction junction, int dir1, int dir2)
             {
                 // Is there one incoming line that can exit?
                 if (!(junction.EdgeCount == 4 && junction.LineCount == 1 && junction.UnknownCount >= 2
@@ -1207,7 +1183,7 @@ namespace SL.Shared
                 {
                     return false;
                 }
-                var cell = board[r, c];
+                var cell = _board[r, c];
                 // Is the next diagonal cell hinted? Would making a corner there cause it to loose too many edges? If it's a two, recurse.
                 var dir3 = Direction.Opposite(dir1);
                 var dir4 = Direction.Opposite(dir2);
@@ -1242,20 +1218,20 @@ namespace SL.Shared
                         break;
                 }
 
-                var nextHint = GetHint(board, r, c);
+                var nextHint = GetHint(r, c);
                 if (nextHint == null) return false; // No hint
                 if (nextHint == 3) return true; // Can never take a corner out of a three
                 if (nextHint == 2)
                 {
                     // Recurse
-                    return CheckForTwoCascadeRecursive(board, r, c, cell.GetJunction(dir3, dir4), dir3, dir4);
+                    return CheckForTwoCascadeRecursive(r, c, cell.GetJunction(dir3, dir4), dir3, dir4);
                 }
                 // TODO: 1
 
                 return false;
             }
 
-            static bool CheckForTwoCascadeRecursive(Board board, int r, int c, Junction junction, int dir1, int dir2)
+            bool CheckForTwoCascadeRecursive(int r, int c, Junction junction, int dir1, int dir2)
             {
                 // We're inferring that this junction already exited, so make sure there aren't any inward lines from it
                 // And that removing those edges wouldn't leave it with too few.
@@ -1266,7 +1242,7 @@ namespace SL.Shared
                     return true;
                 }
                 // HH105 18,16 NW. The diagonal 2 is already down an edge, it can't afford to lose two more.
-                var cell = board[r, c];
+                var cell = _board[r, c];
                 /* // TODO: Breaks HH105 21,1
                 if (cell.Hint == 2 && cell.Undetermined < 4)
                 {
@@ -1304,13 +1280,13 @@ namespace SL.Shared
                         break;
                 }
 
-                var nextHint = GetHint(board, r, c);
+                var nextHint = GetHint(r, c);
                 if (nextHint == null) return false; // No hint
                 if (nextHint == 3) return true; // Can never take a corner out of a three
                 if (nextHint == 2)
                 {
                     // Recurse
-                    return CheckForTwoCascadeRecursive(board, r, c, cell.GetJunction(dir1, dir2), dir1, dir2);
+                    return CheckForTwoCascadeRecursive(r, c, cell.GetJunction(dir1, dir2), dir1, dir2);
                 }
                 // TODO: 1
 
@@ -1382,17 +1358,17 @@ namespace SL.Shared
         // If the given corner only has one outgoing possible line, mark it.
         private bool MarkOutgoingSingleLine(int row, int column, int direction1, int direction2, bool? value)
         {
-            var junction = _game.Board.GetJunction(row, column);
+            var junction = _board.GetJunction(row, column);
             var edge1 = junction.Edges[direction1];
             var edge2 = junction.Edges[direction2];
 
             if ((edge1 == null || edge1.HasLine == false) && edge2 != null)
             {
-                return _game.MarkJunctionEdge(row, column, direction2, value);
+                return MarkJunctionEdge(row, column, direction2, value);
             }
             else if ((edge2 == null || edge2.HasLine == false) && edge1 != null)
             {
-                return _game.MarkJunctionEdge(row, column, direction1, value);
+                return MarkJunctionEdge(row, column, direction1, value);
             }
 
             return false;
@@ -1400,18 +1376,18 @@ namespace SL.Shared
 
         private bool InferJunctionXor(int row, int column, int direction1, int direction2)
         {
-            var junction = _game.Board.GetJunction(row, column);
+            var junction = _board.GetJunction(row, column);
             var edge1 = junction.Edges[direction1];
             var edge2 = junction.Edges[direction2];
 
             if ((edge1 == null || edge1.HasLine == false) && edge2 != null)
             {
-                return _game.MarkJunctionEdge(row, column, direction2, true);
+                return MarkJunctionEdge(row, column, direction2, true);
             }
             
             if ((edge2 == null || edge2.HasLine == false) && edge1 != null)
             {
-                return _game.MarkJunctionEdge(row, column, direction1, true);
+                return MarkJunctionEdge(row, column, direction1, true);
             }
 
             foreach (var inference in junction.Inferences)
@@ -1430,12 +1406,11 @@ namespace SL.Shared
         private bool CheckInferences()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r <= board.Rows; r++)
+            for (var r = 0; r <= _board.Rows; r++)
             {
-                for (var c = 0; c <= board.Columns; c++)
+                for (var c = 0; c <= _board.Columns; c++)
                 {
-                    var junction = board.GetJunction(r, c);
+                    var junction = _board.GetJunction(r, c);
                     foreach (var inference in junction.Inferences)
                     {
                         var edge1 = junction.Edges[inference.Direction1];
@@ -1443,12 +1418,12 @@ namespace SL.Shared
 
                         if ((edge1 == null || edge1.HasLine.HasValue) && edge2 != null)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, inference.Direction2, !edge1?.HasLine ?? true);
+                            progress |= MarkJunctionEdge(r, c, inference.Direction2, !edge1?.HasLine ?? true);
                         }
 
                         if ((edge2 == null || edge2.HasLine.HasValue) && edge1 != null)
                         {
-                            progress |= _game.MarkJunctionEdge(r, c, inference.Direction1, !edge2?.HasLine ?? true);
+                            progress |= MarkJunctionEdge(r, c, inference.Direction1, !edge2?.HasLine ?? true);
                         }
                     }
                 }
@@ -1464,12 +1439,11 @@ namespace SL.Shared
         private bool CheckSingleCellParity()
         {
             bool progress = false;
-            var board = _game.Board;
-            for (var r = 0; r < board.Rows; r++)
+            for (var r = 0; r < _board.Rows; r++)
             {
-                for (var c = 0; c < board.Columns; c++)
+                for (var c = 0; c < _board.Columns; c++)
                 {
-                    var cell = board[r, c];
+                    var cell = _board[r, c];
 
                     // Does the cell have available edges?
                     if (cell.Undetermined == 0)
@@ -1477,10 +1451,10 @@ namespace SL.Shared
                         continue;
                     }
 
-                    var nwJunction = board.GetJunction(r, c);
-                    var neJunction = board.GetJunction(r, c + 1);
-                    var seJunction = board.GetJunction(r + 1, c + 1);
-                    var swJunction = board.GetJunction(r + 1, c);
+                    var nwJunction = _board.GetJunction(r, c);
+                    var neJunction = _board.GetJunction(r, c + 1);
+                    var seJunction = _board.GetJunction(r + 1, c + 1);
+                    var swJunction = _board.GetJunction(r + 1, c);
 
                     // Count the incomplete lines inside and out
                     var lines = CountIncompleteLines(nwJunction, Direction.North, Direction.West)
@@ -1553,7 +1527,7 @@ namespace SL.Shared
                     {
                         // Can't go either way
                         // TODO: it could be an inverse corner (if none of the current lines connects to this junction?)
-                        if (board.GetJunction(exitJunctionR, exitJunctionC).CountLines() == 1)
+                        if (_board.GetJunction(exitJunctionR, exitJunctionC).CountLines() == 1)
                         {
                             // TODO: This case seems to be covered by other inferences
                             // progress |= game.MarkJunctionEdge(exitJunctionR, exitJunctionC, dir1, false);
@@ -1564,17 +1538,17 @@ namespace SL.Shared
                     {
                         Debug.Assert(availableExits == 1); // Might be 1 xor with two actual possible lines
                         // Which edge was it?
-                        var exitJunction = board.GetJunction(exitJunctionR, exitJunctionC);
+                        var exitJunction = _board.GetJunction(exitJunctionR, exitJunctionC);
                         var edge1 = exitJunction.Edges[dir1];
                         var edge2 = exitJunction.Edges[dir2];
 
                         if (edge1?.HasLine.HasValue == false && edge2?.HasLine.HasValue == true)
                         {
-                            progress |= _game.MarkJunctionEdge(exitJunctionR, exitJunctionC, dir1, !even);
+                            progress |= MarkJunctionEdge(exitJunctionR, exitJunctionC, dir1, !even);
                         }
                         else if (edge1?.HasLine.HasValue == true && edge2?.HasLine.HasValue == false)
                         {
-                            progress |= _game.MarkJunctionEdge(exitJunctionR, exitJunctionC, dir2, !even);
+                            progress |= MarkJunctionEdge(exitJunctionR, exitJunctionC, dir2, !even);
                         }
                     }
                 }

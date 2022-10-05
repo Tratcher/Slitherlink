@@ -218,5 +218,26 @@ namespace SL.Shared
                 Undo();
             }
         }
+
+        public bool IsSolved()
+        {
+            // Are all hints satisfied
+            for (var r = 0; r < Board.Rows; r++)
+            {
+                for (var c = 0; c < Board.Columns; c++)
+                {
+                    var cell = Board[r, c];
+                    if (cell.Hint.HasValue)
+                    {
+                        if (cell.Lines != cell.Hint) return false;
+                    }
+                }
+            }
+
+            // TODO:
+            // Do all lines belong to one continuous loop
+
+            return true;
+        }
     }
 }
