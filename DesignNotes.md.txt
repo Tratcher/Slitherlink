@@ -22,3 +22,8 @@ U = unknown number placeholder
 
 
 Generator: randomly draw line until a full loop is made using most of the space. Then fill in all the numbers. Then back solve from the numbers, removing one randomly at a time until nothing can be removed without creating ambiguity.
+
+Streamlined solver:
+- List of junctions to vist
+- List of cells to visit
+- Hash

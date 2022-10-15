@@ -9,7 +9,7 @@ namespace SL.Shared.Structures
     [DebuggerDisplay("HasLine: {HasLine}")]
     public class Edge
     {
-        public bool? HasLine { get; set; }
+        public bool? HasLine;
 
         public bool Vertical { get; init; }
 
