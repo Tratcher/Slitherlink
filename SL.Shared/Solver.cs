@@ -265,6 +265,15 @@ namespace SL.Shared
             }
         }
 
+        // Given a junction coordinate, identify the four cells around it.
+        private static readonly KeyValuePair<int, int>[] _cellsOffsetsAroundJunction = new KeyValuePair<int, int>[4]
+        {
+            new KeyValuePair<int, int>(-1, -1), // NW
+            new KeyValuePair<int, int>(-1, 0), // NE
+            new KeyValuePair<int, int>(0, -1), // SW
+            new KeyValuePair<int, int>(0, 0), // SE
+        };
+
         public bool MarkJunctionEdge(int row, int column, int direction, bool? hasLine)
         {
             if (!_game.MarkJunctionEdge(row, column, direction, hasLine))
@@ -291,9 +300,20 @@ namespace SL.Shared
 
             CheckJunction(junctionR1, junctionC1);
             CheckJunction(junctionR2, junctionC2);
-            return true;
 
-            // TODO: Also check nearby cells
+            // Also check nearby cells
+            for (var i = 0; i < _cellsOffsetsAroundJunction.Length; i++)
+            {
+                var offsets = _cellsOffsetsAroundJunction[i];
+                var c1Row = offsets.Key + junctionR1;
+                var c1Col = offsets.Value + junctionC1;
+                var c2Row = offsets.Key + junctionR2;
+                var c2Col = offsets.Value + junctionC2;
+                CheckCell(c1Row, c1Col);
+                CheckCell(c2Row, c2Col);
+            }
+
+            return true;
 
             void CheckJunction(int row, int column)
             {
@@ -311,6 +331,23 @@ namespace SL.Shared
                 }
             }
 
+            void CheckCell(int row, int column)
+            {
+                var pair = new KeyValuePair<int, int>(row, column);
+                if (0 <= row && row < _board.Rows
+                    && 0 <= column && column < _board.Columns
+                    && !_finishedCells.Contains(pair))
+                {
+                    if (_board[row, column].Undetermined == 0)
+                    {
+                        _finishedCells.Add(pair);
+                    }
+                    else
+                    {
+                        _cellsToTry.Add(pair);
+                    }
+                }
+            }
         }
 
         // Look at cells near recent changes to see if we can deduce anything
