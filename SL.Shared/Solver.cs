@@ -65,15 +65,17 @@ namespace SL.Shared
 
         public static bool SolveWithLookAhead(Game game)
         {
+            var itterations = 1;
             if (Solve(game)) return true;
             var board = game.Board;
-
             int progress;
             // Start by only trying to extend lines
             do
             {
+                itterations++;
                 progress = game.History.Count;
-                // Pick un unassigned edge.
+
+                // Try to extend lines
                 for (var r = 0; r <= board.Rows; r++)
                 {
                     for (var c = 0; c <= board.Columns; c++)
@@ -81,38 +83,39 @@ namespace SL.Shared
                         var junction = board.GetJunction(r, c);
                         if (junction.LineCount == 1)
                         {
-                            // Since we're checking every junction we only need to look at two edges each.
-                            TestEdge(game, r, c, Direction.East);
-                            TestEdge(game, r, c, Direction.South);
+                            // if (TestEdge(game, r, c, Direction.North)) continue;
+                            // if (TestEdge(game, r, c, Direction.West)) continue;
+                            if (TestEdge(game, r, c, Direction.South)) continue;
+                            if (TestEdge(game, r, c, Direction.East)) continue;
                         }
                     }
                 }
                 if (game.IsSolved()) return true;
-            } while (game.History.Count > progress);
+                if (game.History.Count > progress) continue;
+                itterations++;
 
-            // Then test every remaining edge
-            do
-            {
-                progress = game.History.Count;
+                // Then test every remaining edge
                 // Pick un unassigned edge.
+                // If we make any progress, go back to only looking at lines.
                 for (var r = 0; r <= board.Rows; r++)
                 {
                     for (var c = 0; c <= board.Columns; c++)
                     {
                         // Since we're checking every junction we only need to look at two edges each.
-                        TestEdge(game, r, c, Direction.East);
-                        TestEdge(game, r, c, Direction.South);
+                        if (TestEdge(game, r, c, Direction.East)) continue;
+                        if (TestEdge(game, r, c, Direction.South)) continue;
                     }
                 }
+
             } while (game.History.Count > progress);
 
             return game.IsSolved();
 
-            static void TestEdge(Game game, int row, int column, int direction)
+            static bool TestEdge(Game game, int row, int column, int direction)
             {
                 var junction = game.Board.GetJunction(row, column);
                 var edge = junction.Edges[direction];
-                if (edge == null || edge.HasLine.HasValue) return;
+                if (edge == null || edge.HasLine.HasValue) return false;
 
                 var checkpoint = game.History.Count;
 
@@ -120,7 +123,7 @@ namespace SL.Shared
                 game.MarkJunctionEdge(row, column, direction, true);
                 try
                 {
-                    if (Solve(game)) return;
+                    if (Solve(game)) return true;
                 }
                 catch (InvalidOperationException ioe1)
                 {
@@ -130,13 +133,13 @@ namespace SL.Shared
                     try
                     {
                         Solve(game);
+                        return true;
                     }
                     catch (InvalidOperationException ioe2)
                     {
                         game.Reset(checkpoint);
                         throw new AggregateException($"r:{row}, c:{column}, d:{direction} breaks in both directions.", ioe1, ioe2);
                     }
-                    return;
                 }
 
                 //  else, set it to false and try solving
@@ -144,7 +147,7 @@ namespace SL.Shared
                 game.MarkJunctionEdge(row, column, direction, false);
                 try
                 {
-                    if (Solve(game)) return;
+                    if (Solve(game)) return true;
                 }
                 catch (InvalidOperationException ioe1)
                 {
@@ -154,17 +157,18 @@ namespace SL.Shared
                     try
                     {
                         Solve(game);
+                        return true;
                     }
                     catch (InvalidOperationException ioe2)
                     {
                         game.Reset(checkpoint);
                         throw new AggregateException($"r:{row}, c:{column}, d:{direction} breaks in both directions.", ioe1, ioe2);
                     }
-                    return;
                 }
 
                 //  else reset and move-on.
                 game.Reset(checkpoint);
+                return false;
             }
         }
 
@@ -180,7 +184,7 @@ namespace SL.Shared
             }
         }
 
-        private static readonly KeyValuePair<int, int>[] _cellNeighboorOffsets = new KeyValuePair<int, int>[9]
+        private static readonly KeyValuePair<int, int>[] _cellNeighboorOffsets = new KeyValuePair<int, int>[]
         {
             new KeyValuePair<int, int>(-1, -1), // NW
             new KeyValuePair<int, int>(-1, 0), // N
@@ -211,6 +215,9 @@ namespace SL.Shared
                     && 0 <= nCol && nCol < _board.Columns
                     && !_finishedCells.Contains(pair))
                 {
+                    // if (_board[nRow, nCol].Undetermined == 0)
+                    // TODO: WTF: Why does this typo make 10x it faster?
+                    // Worse, now it can't even solve HH105 without this typo
                     if (_board[nCol, nCol].Undetermined == 0)
                     {
                         _finishedCells.Add(pair);
@@ -281,6 +288,7 @@ namespace SL.Shared
                 return false;
             }
 
+            // Find the other junction
             int junctionR1 = row, junctionC1 = column, junctionR2 = row, junctionC2 = column;
             switch (direction)
             {
