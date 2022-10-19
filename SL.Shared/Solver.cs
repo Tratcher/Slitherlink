@@ -988,7 +988,7 @@ namespace SL.Shared
             var startJunction = edge.Junctions[0];
             var endJunction = edge.Junctions[1];
 
-            if (!JunctionHasOneLine(startJunction) || !JunctionHasOneLine(endJunction))
+            if (startJunction.LineCount != 1 || endJunction.LineCount != 1)
             {
                 // These two can't be connected right now.
                 return false;
@@ -1534,21 +1534,6 @@ namespace SL.Shared
 
                 return false;
             }
-        }
-
-        private static bool JunctionHasOneLine(Junction junction)
-        {
-            var north = junction.Edges[Direction.North];
-            var south = junction.Edges[Direction.South];
-            var east = junction.Edges[Direction.East];
-            var west = junction.Edges[Direction.West];
-
-            var northHasLine = north?.HasLine == true;
-            var southHasLine = south?.HasLine == true;
-            var eastHasLine = east?.HasLine == true;
-            var westHasLine = west?.HasLine == true;
-            var totalLines = (northHasLine ? 1 : 0) + (southHasLine ? 1 : 0) + (eastHasLine ? 1 : 0) + (westHasLine ? 1 : 0);
-            return totalLines == 1;
         }
 
         // One outward edge is a line and the other doesn't exist or is an X
