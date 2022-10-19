@@ -27,30 +27,46 @@ namespace SL.Shared
             // Reset any stale inferences, they may be derived from invalid user input.
             solver.ClearInferences();
 
-            // MarkZeros(game); // Generalized by MarkLinesMatchingHints
-
             solver.MarkAdjacentThrees();
 
-            // MarkDiagonalThrees(game); // Generalized by InferThrees
+            return solver.Solve();
+        }
 
+        // Start by changing a specific edge and then solve from that space.
+        public static bool Solve(Game game, int row, int column, int direction, bool? hasValue)
+        {
+            var solver = new Solver(game);
+            // Reset any stale inferences, they may be derived from invalid user input.
+            solver.ClearInferences();
+
+            // We assume this has already happened for this game.
+            // solver.MarkAdjacentThrees();
+
+            solver.MarkJunctionEdge(row, column, direction, hasValue);
+
+            return solver.Solve();
+        }
+
+        public bool Solve()
+        {
             do
             {
-                if (solver.CheckRecentlyChangedCells()) continue;
-                if (solver.CheckRecentlyChangedJunctions()) continue;
-                if (solver.MarkLinesMatchingHints()) continue;
-                if (solver.MarkDeadEnds()) continue;
-                if (solver.ExtendLines()) continue;
-                if (solver.MarkOnesInACorner()) continue;
-                if (solver.MarkThreesInACorner()) continue;
-                if (solver.MarkThreesWithIncomingLines()) continue;
-                if (solver.MarkTwosInACorner()) continue;
-                if (solver.InferOnes()) continue;
-                if (solver.InferTwos()) continue;
-                if (solver.InferThrees()) continue;
-                if (solver.InferExit()) continue;
-                if (solver.CheckInferences()) continue;
-                if (solver.CheckSingleCellParity()) continue;
-                if (solver.DetectLoops()) continue;
+                if (CheckRecentlyChangedCells()) continue;
+                if (CheckRecentlyChangedJunctions()) continue;
+                if (MarkLinesMatchingHints()) continue;
+                if (MarkDeadEnds()) continue;
+                if (ExtendLines()) continue;
+                if (MarkOnesInACorner()) continue;
+                if (MarkThreesInACorner()) continue;
+                if (MarkThreesWithIncomingLines()) continue;
+                if (MarkTwosInACorner()) continue;
+                if (InferOnes()) continue;
+                if (InferTwos()) continue;
+                if (InferThrees()) continue;
+                if (InferExit()) continue;
+                if (CheckInferences()) continue;
+                if (CheckSingleCellParity()) continue;
+                if (DetectLoops()) continue;
 
                 // Ones next to threes on an edge
 
@@ -60,7 +76,7 @@ namespace SL.Shared
                 break;
             } while (true);
 
-            return game.IsSolved();
+            return _game.IsSolved();
         }
 
         public static bool SolveWithLookAhead(Game game)
@@ -116,20 +132,18 @@ namespace SL.Shared
 
                 var checkpoint = game.History.Count;
 
-                // Set it to true. Try solving.
-                game.MarkJunctionEdge(row, column, direction, true);
                 try
                 {
-                    if (Solve(game)) return true;
+                    // Set it to true. Try solving.
+                    if (Solve(game, row, column, direction, true)) return true;
                 }
                 catch (InvalidOperationException ioe1)
                 {
                     // If it fails, this edge must be false.
                     game.Reset(checkpoint);
-                    game.MarkJunctionEdge(row, column, direction, false);
                     try
                     {
-                        Solve(game);
+                        Solve(game, row, column, direction, false);
                         return true;
                     }
                     catch (InvalidOperationException ioe2)
@@ -141,19 +155,17 @@ namespace SL.Shared
 
                 //  else, set it to false and try solving
                 game.Reset(checkpoint);
-                game.MarkJunctionEdge(row, column, direction, false);
                 try
                 {
-                    if (Solve(game)) return true;
+                    if (Solve(game, row, column, direction, false)) return true;
                 }
                 catch (InvalidOperationException ioe1)
                 {
                     // If that fails, set it to true and re-solve
                     game.Reset(checkpoint);
-                    game.MarkJunctionEdge(row, column, direction, true);
                     try
                     {
-                        Solve(game);
+                        Solve(game, row, column, direction, true);
                         return true;
                     }
                     catch (InvalidOperationException ioe2)
