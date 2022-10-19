@@ -16,7 +16,12 @@ foreach (var filePath in Directory.GetFiles(rootDir, "*.csv"))
 
     try
     {
-        Solver.SolveWithLookAhead(game);
+        // Run  few times to get better profiling data
+        for (var i = 0; i < 5; i++)
+        {
+            game.Reset();
+            Solver.SolveWithLookAhead(game);
+        }
     }
     catch (Exception ioe)
     {

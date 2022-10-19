@@ -902,9 +902,8 @@ namespace SL.Shared
         {
             bool progress = false;
             var junction = _board.GetJunction(r, c);
-            if (junction.LineCount != 1) return false;
 
-            if (junction.UnknownCount == 1)
+            if (junction.UnknownCount == 1 && junction.LineCount == 1)
             {
                 var north = junction.Edges[Direction.North];
                 var south = junction.Edges[Direction.South];
