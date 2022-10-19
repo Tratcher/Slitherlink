@@ -136,6 +136,16 @@ namespace SL.Shared
 
             edge.HasLine = hasLine;
 
+            if (validate == true)
+            {
+                // Would form a closed loop without solving the whole puzzle
+                if (edge.HasLine == true && DetectLoop(edge) && !IsSolved())
+                {
+                    edge.HasLine = oldValue;
+                    throw new InvalidOperationException($"A loop was created without solving the complete puzzle. r:{row}, c:{column}, d:{direction}");
+                }
+            }
+
             History.Push(new Move()
             {
                 Row = row,
@@ -238,6 +248,42 @@ namespace SL.Shared
             // Do all lines belong to one continuous loop
 
             return true;
+        }
+
+        // Detect if marking this edge created a loop.
+        private static bool DetectLoop(Edge edge)
+        {
+            var startJunction = edge.Junctions[0];
+            var endJunction = edge.Junctions[1];
+            var junction = startJunction;
+
+            Edge? priorEdge = edge;
+            bool progressed;
+            do
+            {
+                progressed = false;
+                foreach (var e in junction.Edges)
+                {
+                    if (e != null && e != priorEdge && e.HasLine == true)
+                    {
+                        junction = GetNextJunction(e, junction);
+                        progressed = true;
+                        priorEdge = e;
+                        break;
+                    }
+                }
+
+                if (junction == endJunction) return true;
+            }
+            while (progressed);
+
+            return false;
+
+            // Get the oposite one
+            Junction GetNextJunction(Edge edge, Junction junction)
+            {
+                return edge.Junctions[0] == junction ? edge.Junctions[1] : edge.Junctions[0];
+            }
         }
     }
 }

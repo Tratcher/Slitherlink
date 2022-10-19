@@ -65,14 +65,12 @@ namespace SL.Shared
 
         public static bool SolveWithLookAhead(Game game)
         {
-            var itterations = 1;
             if (Solve(game)) return true;
             var board = game.Board;
             int progress;
             // Start by only trying to extend lines
             do
             {
-                itterations++;
                 progress = game.History.Count;
 
                 // Try to extend lines
@@ -92,7 +90,6 @@ namespace SL.Shared
                 }
                 if (game.IsSolved()) return true;
                 if (game.History.Count > progress) continue;
-                itterations++;
 
                 // Then test every remaining edge
                 // Pick un unassigned edge.
@@ -215,10 +212,7 @@ namespace SL.Shared
                     && 0 <= nCol && nCol < _board.Columns
                     && !_finishedCells.Contains(pair))
                 {
-                    // if (_board[nRow, nCol].Undetermined == 0)
-                    // TODO: WTF: Why does this typo make 10x it faster?
-                    // Worse, now it can't even solve HH105 without this typo
-                    if (_board[nCol, nCol].Undetermined == 0)
+                    if (_board[nRow, nCol].Undetermined == 0)
                     {
                         _finishedCells.Add(pair);
                     }
